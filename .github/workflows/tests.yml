@@ -1,0 +1,48 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    # 이 도구는 Windows 전용이므로 실제 대상 플랫폼·버전에서 검증한다.
+    runs-on: windows-latest
+
+    # pwsh(PowerShell 7)는 스크립트를 UTF-8로 읽는다. Windows PowerShell 5.1이나
+    # cmd 는 한글이 든 파일 이름을 깨뜨리므로 여기서는 쓰지 않는다.
+    defaults:
+      run:
+        shell: pwsh
+
+    env:
+      PYTHONUTF8: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: 판 고정 패키지 설치
+        # pypdf·pdfminer 는 검증 전용이다 — 다른 추출기로도 글자층을 교차 확인한다.
+        run: |
+          python -m pip install --quiet -r engine/requirements.txt
+          python -m pip install --quiet pypdf pdfminer.six
+
+      - name: 단위 검증 62개
+        # rhwp 없이 설정·표식·대상 정하기·건너뛰기·암호·글자층 보정·미리보기 대조를 확인한다.
+        run: python "engine/단위_검증.py"
+
+      - name: 변환 엔진 rhwp 받기 (지문 대조)
+        run: python -c "import sys; sys.path.insert(0, 'engine'); import setup_env; sys.exit(0 if setup_env.fetch_rhwp() else 1)"
+
+      - name: 종단 검증 31항목 (교차 추출기 포함)
+        # 합성 문서만 쓴다 — 로그에 실제 문서의 조각이 남지 않는다.
+        run: python "engine/종단_검증.py"
+
+      - name: 엔진 구문 검사
+        run: python -m compileall -q engine/hwp2pdf.py engine/rhwp_cli.py engine/pdf_text.py engine/fidelity.py engine/setup_env.py
