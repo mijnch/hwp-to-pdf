@@ -97,4 +97,21 @@ rhwp 통합 시험: 시험 원본 1,477개 중 별도 대상(예외 14개)과 �
 대신 Α 가 나와 달라졌다. 의도한 변경(고침 3)이므로 시험이 안내하는 대로 골든을 갱신해 패치에 넣었다
 (`src/renderer/equation/fixtures/m09_expand/over_greek.golden`).
 
-상류 rhwp 에 보고·기여할 후보다(사용자 승인 뒤에만).
+## 상류 보고 (2026-10-10)
+
+rhwp 의 CONTRIBUTING 은 조판 변경 PR 에 독립 한컴 Print PDF 와의 전 쪽 Visual Sweep(Native·fresh WASM,
+모든 쪽 90% 이상)을 요구한다. 이 PC 에는 한컴이 없고 처음 찾은 문서는 비공개라 그 조건을 채울 수 없어,
+고침마다 원인·수정안·로컬 검증을 담은 이슈로 올렸다.
+
+| 고침 | 이슈 |
+|---|---|
+| 1. 다단 구역 시작 위치 | [edwardkim/rhwp#7794](https://github.com/edwardkim/rhwp/issues/7794) |
+| 2. 정의 없는 글머리표 | [edwardkim/rhwp#7795](https://github.com/edwardkim/rhwp/issues/7795) |
+| 3. 대문자 그리스 문자 수식 명령 | [edwardkim/rhwp#7796](https://github.com/edwardkim/rhwp/issues/7796) |
+| 4. 표 칸 안 그림 + 캡션 | [edwardkim/rhwp#7797](https://github.com/edwardkim/rhwp/issues/7797) |
+| 5. 인라인 1행 표의 행 높이 | [edwardkim/rhwp#7798](https://github.com/edwardkim/rhwp/issues/7798) |
+| 6. 수식만 있는 줄의 들여쓰기 | [edwardkim/rhwp#7799](https://github.com/edwardkim/rhwp/issues/7799) |
+| 7. 어울림 그림 옆 줄의 내어쓰기 | [edwardkim/rhwp#7800](https://github.com/edwardkim/rhwp/issues/7800) |
+| 8. 가운데 정렬 문단의 수식 줄 | [edwardkim/rhwp#7801](https://github.com/edwardkim/rhwp/issues/7801) |
+
+상류에 반영되면 그 판으로 `RHWP_BASE` 를 올리고 이 패치에서 해당 부분을 뺀다.
