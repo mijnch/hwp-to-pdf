@@ -382,6 +382,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     _no_prompt()
     hwp2pdf.TMP_ROOT.mkdir(exist_ok=True)
+    hwp2pdf.cleanup_stale_temp()  # 중간에 끊긴 대조가 남긴 작업 폴더(원본 사본 포함)를 도구와 같은 규칙으로 치운다
 
     if a.baseline:
         return run_baseline(None if a.baseline == "비교" else a.baseline, a.대상)
