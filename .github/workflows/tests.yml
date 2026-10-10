@@ -37,6 +37,18 @@ jobs:
         # rhwp 없이 설정·표식·대상 정하기·건너뛰기·암호·글자층 보정·미리보기 대조를 확인한다.
         run: python "engine/단위_검증.py"
 
+      - name: 한국어 글꼴 설치
+        # GitHub 의 Windows 러너에는 한국어 글꼴이 없어 rhwp 가 한글을 빈칸으로 그린다(글자층 0%).
+        # 사용자 PC 처럼 맑은 고딕·바탕을 갖춘 상태에서 검증한다 — Windows 선택적 기능 '한국어 보조 글꼴'.
+        run: |
+          $cap = "Language.Fonts.Kore~~~und-KOR~0.0.1.0"
+          if ((Get-WindowsCapability -Online -Name $cap).State -ne "Installed") {
+            Add-WindowsCapability -Online -Name $cap | Out-Null
+          }
+          $fonts = Get-ChildItem "$env:WINDIR\Fonts" | Where-Object { $_.Name -match '^(malgun|batang|gulim)' }
+          $fonts | ForEach-Object { Write-Host $_.Name }
+          if (-not ($fonts | Where-Object { $_.Name -match '^batang' })) { throw "바탕 글꼴이 설치되지 않았습니다" }
+
       - name: 변환 엔진 rhwp 받기 (지문 대조)
         run: python -c "import sys; sys.path.insert(0, 'engine'); import setup_env; sys.exit(0 if setup_env.fetch_rhwp() else 1)"
 
