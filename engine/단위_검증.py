@@ -403,6 +403,40 @@ check("BUILD.json 이 깨졌으면 표지 없음", R.build_tag(fake_exe) is None
 check("표지가 바뀌면 산출물 지문도 바뀜 → 다시 만듦",
       H.fingerprint("0.8.7") != H.fingerprint("0.8.7+21ed640.p89600c"))
 
+# 환경 설치가 받은 엔진 zip 을 engine\rhwp 에 푸는 규칙
+import zipfile  # noqa: E402
+import setup_env as SE  # noqa: E402
+edir = TMP / "engine_rhwp"
+patched = TMP / "patched.zip"
+exe_bytes = b"MZ patched rhwp"
+with zipfile.ZipFile(patched, "w") as z:
+    z.writestr("rhwp-hwp2pdf/rhwp.exe", exe_bytes)
+    z.writestr("rhwp-hwp2pdf/LICENSE", "MIT")
+    z.writestr("rhwp-hwp2pdf/BUILD.json", json.dumps({
+        "base": "edwardkim/rhwp@21ed64071f81f35f37618717693bd30f727392c9",
+        "patch_sha256": "5092a33c" + "0" * 56, "exe_sha256": hashlib.sha256(exe_bytes).hexdigest()}))
+    z.writestr("rhwp-hwp2pdf/README.txt", "x")
+ok = SE.install_zip(patched, {"rhwp.exe", "LICENSE", "BUILD.json"}, edir)
+check("고친 엔진 zip: 실행 파일·라이선스·출처만 풀고, 풀린 판이 고친 판 표지를 가짐",
+      ok and sorted(p.name for p in edir.iterdir()) == ["BUILD.json", "LICENSE", "rhwp.exe"]
+      and R.build_tag(edir / "rhwp.exe") == "21ed640.p5092a3", sorted(p.name for p in edir.iterdir()))
+release = TMP / "release.zip"
+with zipfile.ZipFile(release, "w") as z:
+    z.writestr("rhwp/rhwp.exe", b"MZ release rhwp")
+    z.writestr("rhwp/LICENSE", "MIT")
+SE.install_zip(release, {"rhwp.exe", "LICENSE"}, edir)
+check("원래 릴리스로 바꾸면 낡은 BUILD.json 을 지움 (다른 실행 파일을 가리키는 표지)",
+      not (edir / "BUILD.json").exists() and R.build_tag(edir / "rhwp.exe") is None)
+empty = TMP / "empty.zip"
+with zipfile.ZipFile(empty, "w") as z:
+    z.writestr("x/LICENSE", "MIT")
+before = (edir / "rhwp.exe").read_bytes()
+check("rhwp.exe 가 없는 zip 은 아무것도 바꾸지 않음",
+      SE.install_zip(empty, {"rhwp.exe", "LICENSE"}, edir) is False and (edir / "rhwp.exe").read_bytes() == before)
+check("설정된 고친 엔진 표지가 지금 패치 파일의 지문과 맞음",
+      SE.ENGINE_TAG == "21ed640.p" + hashlib.sha256(
+          (Path(SE.ENGINE_DIR) / "rhwp_patches" / "hwp2pdf-rhwp.patch").read_bytes()).hexdigest()[:6])
+
 # rhwp 의 PDF 기본 대체 글꼴(바탕·맑은 고딕)이 없으면 있는 글꼴로 바꾼다
 fdir = TMP / "fonts"
 fdir.mkdir()
@@ -426,6 +460,21 @@ for n in ("가.hwp", "가.pdf", "나.hwpx", "다.pdf", "라.HWPX", "라.pdf"):
     (pair_dir / n).write_bytes(b"x")
 check("같은 이름의 (문서, PDF) 쌍만 고름", [d.name for d, _ in C.find_pairs(pair_dir)] == ["가.hwp", "라.HWPX"],
       [d.name for d, _ in C.find_pairs(pair_dir)])
+
+# 기준선 비교 — 측정 잡음 안의 흔들림은 넘기고, 문턱을 넘는 하락·쪽 수 변화·원본 교체는 잡는다
+base = dict(sha256="a", pages=3, silhouette=98.6, match=0.91, hangul=1.0, hangul_words=1.0)
+check("기준선: 같으면 나빠짐 없음", C.compare_baseline(base, dict(base)) == [])
+check("기준선: 문턱 안의 하락·오름은 넘김",
+      C.compare_baseline(base, dict(base, silhouette=98.4, match=0.905, hangul_words=0.998)) == [])
+bad = C.compare_baseline(base, dict(base, silhouette=97.9, pages=4, hangul=None))
+check("기준선: 실루엣 하락·쪽 수 변화·글자층 사라짐을 모두 잡음",
+      len(bad) == 3 and any("실루엣" in b for b in bad) and any("쪽 수" in b for b in bad)
+      and any("없음" in b for b in bad), bad)
+check("기준선: 원본이 바뀌면 비교하지 않고 알림",
+      C.compare_baseline(base, dict(base, sha256="b", silhouette=10)) == [
+          "원본 파일이 바뀜 — 비교하지 않음(--기준 갱신 으로 새로 잡으세요)"])
+check("기준선: 처음부터 못 잰 항목(작은 미리보기)은 비교하지 않음",
+      C.compare_baseline(dict(base, silhouette=None), dict(base, silhouette=None)) == [])
 
 line, notes = H.summarize(dict(pages=3, seconds=1.2, preview=0.6, hangul=0.9, warns=["LAYOUT_X: a"]))
 check("낮은 점수는 확인 권장 문구로", len(notes) == 2 and "한컴 미리보기" in notes[0] and "90%" in notes[1], notes)

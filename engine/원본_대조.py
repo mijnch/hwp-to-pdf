@@ -10,6 +10,11 @@
         rhwp 저장소의 한컴 PDF 34쌍(engine\\원본대조_목록.json — 커밋 고정, git 지문 대조)을
         원본대조\\rhwp 에 받아 --쌍 과 같이 잰다(약 38MB, 처음 한 번).
 
+    engine\\venv\\Scripts\\python.exe engine\\원본_대조.py --기준 [추가 <파일...> | 갱신]
+        기준선 — 등록한 문서를 실제 도구 경로로 변환해 쪽 수·글자층·1쪽 실루엣·칸 정렬을 재고
+        원본대조\\기준.json 의 앞 점수와 비교한다. 나빠진 문서가 있으면 종료 코드 1.
+        (PDF OCR 의 정답지 채점과 같은 역할. 문서는 복사하지 않고 경로·지문·점수만 적는다.)
+
     --차이        90% 미만 쪽의 겹친 그림을 원본대조\\차이 에 남긴다 (빨강 = 우리만, 파랑 = 원본만)
     --json 파일   결과를 JSON 으로 남긴다 (판끼리 비교용)
 
@@ -267,6 +272,104 @@ def fetch_rhwp_pairs() -> list[tuple[Path, Path]]:
     return pairs
 
 
+# ── 기준선 (PDF OCR 의 정답지 채점과 같은 역할) ─────────────────────
+
+BASELINE = WORK / "기준.json"
+# 이만큼 떨어지면 '나빠짐' — 측정 잡음(같은 엔진 재실행은 0)보다 크고, 고침 한 건의 효과보다 작다
+DROP_SIL = 0.3       # 실루엣 일치율 %p
+DROP_MATCH = 0.01    # 칸 정렬 점수
+DROP_RECALL = 0.005  # 한글 글자·낱말 회수율
+
+
+def measure_doc(path: Path) -> dict:
+    """문서 하나를 실제 도구 경로로 변환해 기준선 항목을 잰다(쪽 수·글자층·1쪽 한컴 미리보기)."""
+    import fidelity
+    from rhwp_cli import Rhwp
+    rec = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    with tempfile.TemporaryDirectory(prefix="hwp2pdf_base_", dir=hwp2pdf.TMP_ROOT, ignore_cleanup_errors=True) as td:
+        td = Path(td)
+        out = td / "out.pdf"
+        cfg = dict(hwp2pdf.DEFAULTS, 미리보기_대조=True)
+        res = hwp2pdf.convert_one(path, out, cfg, Rhwp().version(), td / "job", path.name)
+        rec.update(pages=res["pages"], hangul=res.get("hangul"), hangul_words=res.get("hangul_words"),
+                   match=res.get("preview"))
+        thumb = td / "job" / "preview.png"  # convert_one 이 미리보기 대조에 쓴 그림
+        if thumb.is_file():
+            from PIL import Image
+            with Image.open(thumb) as im:
+                small = min(im.size) < SIL_MIN_PX
+            rec["silhouette"] = None if small else fidelity.preview_silhouette(out, thumb)
+    return rec
+
+
+def compare_baseline(old: dict, new: dict) -> list[str]:
+    """old → new 에서 나빠진 항목의 설명. 원본 파일이 바뀌었으면 비교하지 않고 그 사실만 알린다."""
+    if old.get("sha256") != new.get("sha256"):
+        return ["원본 파일이 바뀜 — 비교하지 않음(--기준 갱신 으로 새로 잡으세요)"]
+    bad = []
+    if old.get("pages") != new.get("pages"):
+        bad.append(f"쪽 수 {old.get('pages')} → {new.get('pages')}")
+    for key, drop, label in (("silhouette", DROP_SIL, "실루엣"), ("match", DROP_MATCH, "칸 정렬"),
+                             ("hangul", DROP_RECALL, "한글 글자"), ("hangul_words", DROP_RECALL, "한글 낱말")):
+        a, b = old.get(key), new.get(key)
+        if a is not None and (b is None or a - b > drop):
+            bad.append(f"{label} {a:.3f} → {'없음' if b is None else f'{b:.3f}'}")
+    return bad
+
+
+def run_baseline(action: str | None, files: list[Path]) -> int:
+    from rhwp_cli import Rhwp
+    data = json.loads(BASELINE.read_text(encoding="utf-8")) if BASELINE.exists() else {"문서": {}}
+    docs = data["문서"]
+    if action == "추가":
+        if not files:
+            print("추가할 한글 문서를 주세요: 원본_대조.py --기준 추가 <파일...>")
+            return 1
+        for f in files:
+            docs.setdefault(str(f.resolve()), {})
+        targets = [f.resolve() for f in files]
+    else:
+        targets = [Path(p) for p in docs]
+    if not targets:
+        print("기준선이 비어 있습니다. 먼저: 원본_대조.py --기준 추가 <파일...>")
+        return 1
+    engine = Rhwp().version()
+    worse = 0
+    print(f"기준선 {len(targets)}개 · 엔진 {engine}\n")
+    for p in targets:
+        key = str(p)
+        if not p.is_file():
+            print(f"  -  찾을 수 없음: {p}")
+            continue
+        try:
+            new = measure_doc(p)
+        except Exception as e:  # 암호·손상 등 — 기준선을 지우지 않고 알린다
+            print(f"  -  {p.name}: {str(e)[:120]}")
+            continue
+        old = docs.get(key, {}).get("점수")
+        sil = "-" if new.get("silhouette") is None else f"{new['silhouette']:.2f}%"
+        line = (f"{p.name}: {new['pages']}쪽 · 실루엣 {sil} · 칸 정렬 {new.get('match') or 0:.3f} · "
+                f"글자층 {100 * (new.get('hangul') or 0):.0f}%/{100 * (new.get('hangul_words') or 0):.0f}%")
+        if old and action != "갱신":
+            bad = compare_baseline(old, new)
+            if bad:
+                worse += 1
+                print(f"  ⚠ {line}\n      나빠짐: " + " · ".join(bad))
+            else:
+                prev = old.get("silhouette")
+                delta = "" if prev is None or new.get("silhouette") is None else f" ({new['silhouette'] - prev:+.2f})"
+                print(f"  ✔ {line}{delta}")
+        else:
+            print(f"  ● {line}  (기준으로 저장)")
+        if action in ("추가", "갱신") or not old:
+            docs[key] = {"점수": new, "엔진": engine, "날짜": time.strftime("%Y-%m-%d %H:%M")}
+    WORK.mkdir(exist_ok=True)
+    BASELINE.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    if worse:
+        print(f"\n나빠진 문서 {worse}개 — 의도한 변화면: 원본_대조.py --기준 갱신")
+    return 1 if worse else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="변환 결과를 한컴 원본과 맞대 일치율을 잰다")
     ap.add_argument("대상", nargs="*", type=Path, help="한글 문서 또는 폴더 (미리보기 대조)")
@@ -274,9 +377,14 @@ def main(argv=None) -> int:
     ap.add_argument("--rhwp-시험", dest="rhwp", action="store_true", help="rhwp 저장소의 한컴 PDF 34쌍")
     ap.add_argument("--차이", action="store_true", help="90%% 미만 쪽의 겹친 그림을 남긴다")
     ap.add_argument("--json", type=Path, metavar="파일", help="결과 JSON")
+    ap.add_argument("--기준", dest="baseline", nargs="?", const="비교", choices=["비교", "추가", "갱신"],
+                    help="기준선: 비교(기본) · 추가 <파일...> · 갱신")
     a = ap.parse_args(argv)
     _no_prompt()
     hwp2pdf.TMP_ROOT.mkdir(exist_ok=True)
+
+    if a.baseline:
+        return run_baseline(None if a.baseline == "비교" else a.baseline, a.대상)
 
     from rhwp_cli import Rhwp
     print(f"rhwp {Rhwp().version()}")

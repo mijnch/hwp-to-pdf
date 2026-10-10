@@ -7,8 +7,9 @@
   1. 쓸 만한 Python 3.14 를 찾는다
   2. engine\\venv 를 만든다  (폴더 안이므로 도구를 옮기면 같이 간다)
   3. engine\\requirements.txt 로 패키지를 설치한다
-  4. 변환 엔진 rhwp 를 GitHub 릴리스에서 받아 engine\\rhwp 에 둔다 (지문 대조)
-     — 이미 있으면(고친 판 포함) 그대로 둔다. 고친 판은 engine\\build_rhwp.py 로 만든다
+  4. 변환 엔진을 받아 engine\\rhwp 에 둔다 (지문 대조) — 이 저장소 릴리스의 고친 rhwp 를 먼저,
+     받지 못하면 rhwp 원래 릴리스를. 같은 고친 판이 이미 있으면 그대로 둔다
+     (고친 판은 engine\\build_rhwp.py 로 소스에서 다시 만들 수도 있다)
   5. 핵심 import 를 확인하고, 합성 문서 하나를 실제로 끝까지 변환해 본다
 
 왜 필요한가
@@ -44,6 +45,14 @@ RHWP_VERSION = "0.8.7"
 RHWP_URL = (f"https://github.com/edwardkim/rhwp/releases/download/v{RHWP_VERSION}/"
             f"rhwp-v{RHWP_VERSION}-windows-x86_64.zip")
 RHWP_SHA256 = "e8d5654b9040561e1cb07474db54ce09f0fe4def45777833b9d9cc6fb1fade3c"
+
+# 고친 엔진 — 위 판의 devel 소스에 engine\rhwp_patches 의 고침 8건을 넣어 build_rhwp.py 로 만든 것을
+# 이 저장소의 릴리스 파일로 올려 두었다. 먼저 이것을 받고(지문 대조), 받지 못하면 원래 릴리스를 받는다.
+# 고침을 바꾸면 build_rhwp.py 로 새로 빌드해 새 릴리스로 올리고 여기 세 값을 함께 바꾼다.
+ENGINE_TAG = "21ed640.p5092a3"   # rhwp_cli.build_tag 형식: 바탕 커밋.p고침 지문
+ENGINE_URL = ("https://github.com/mijnch/hwp-to-pdf/releases/download/engine-21ed640-p5092a3/"
+              "rhwp-hwp2pdf-21ed640-p5092a3-windows-x86_64.zip")
+ENGINE_SHA256 = "aade8cf30df291221fa1f347c6d598cf3dc9c43de4fde33f91be6e7ad7e3bb76"
 
 
 def say(msg: str = "") -> None:
@@ -89,34 +98,78 @@ def rhwp_version() -> str | None:
         return None
 
 
-def fetch_rhwp() -> bool:
-    if rhwp_version() == RHWP_VERSION:
-        say(f"\n[3/4] 변환 엔진 rhwp {RHWP_VERSION}: 이미 있습니다 — 건너뜁니다")
-        return True
-    say(f"\n[3/4] 변환 엔진 rhwp {RHWP_VERSION} 내려받기 (약 11MB)")
+def installed_tag() -> str | None:
+    """설치된 rhwp 가 BUILD.json 의 고친 판이면 그 표지(예: 21ed640.p5092a3)."""
+    sys.path.insert(0, str(ENGINE_DIR))
+    from rhwp_cli import build_tag
+    return build_tag(RHWP_EXE)
+
+
+def install_zip(zpath: Path, members: set[str], rhwp_dir: Path = RHWP_DIR) -> bool:
+    """zip 안의 members(파일 이름)를 rhwp_dir 에 둔다. rhwp.exe 가 없으면 아무것도 바꾸지 않는다.
+
+    새 파일을 모두 읽은 뒤에 쓴다 — 읽다 실패하면 쓰던 엔진이 그대로 남는다. zip 에 BUILD.json 이
+    없으면(원래 릴리스) 남아 있던 BUILD.json 을 지운다 — 다른 실행 파일을 가리키는 낡은 출처 표지다.
+    """
+    found: dict[str, bytes] = {}
+    with zipfile.ZipFile(zpath) as z:
+        for name in z.namelist():
+            base = name.rsplit("/", 1)[-1]
+            if base in members:
+                found[base] = z.read(name)
+    if "rhwp.exe" not in found:
+        return False
+    rhwp_dir.mkdir(exist_ok=True)
+    if "BUILD.json" not in found:
+        (rhwp_dir / "BUILD.json").unlink(missing_ok=True)
+    for base, data in found.items():
+        (rhwp_dir / base).write_bytes(data)
+    return True
+
+
+def download_engine(url: str, sha256: str, members: set[str]) -> bool:
     zpath = ENGINE_DIR / "_rhwp.zip"
     try:
-        urllib.request.urlretrieve(RHWP_URL, zpath)
+        urllib.request.urlretrieve(url, zpath)
         digest = hashlib.sha256(zpath.read_bytes()).hexdigest()
-        if digest != RHWP_SHA256:
+        if digest != sha256:
             say("    [실패] 받은 파일의 지문이 다릅니다 — 쓰지 않고 지웁니다")
-            say(f"           기대 {RHWP_SHA256}\n           실제 {digest}")
+            say(f"           기대 {sha256}")
+            say(f"           실제 {digest}")
             return False
-        RHWP_DIR.mkdir(exist_ok=True)
-        with zipfile.ZipFile(zpath) as z:
-            for name in z.namelist():
-                base = name.rsplit("/", 1)[-1]
-                if base in ("rhwp.exe", "LICENSE"):
-                    (RHWP_DIR / base).write_bytes(z.read(name))
-        say(f"    완료 → {RHWP_EXE}")
-        return rhwp_version() == RHWP_VERSION
+        if not install_zip(zpath, members):
+            say("    [실패] zip 안에 rhwp.exe 가 없습니다")
+            return False
+        return True
     except Exception as e:
         say(f"    [실패] {type(e).__name__}: {e}")
-        say(f"    직접 받으려면: {RHWP_URL}")
-        say(f"    zip 안의 rhwp.exe 를 {RHWP_DIR} 에 두세요.")
         return False
     finally:
         zpath.unlink(missing_ok=True)
+
+
+def fetch_rhwp() -> bool:
+    if rhwp_version() == RHWP_VERSION and installed_tag() == ENGINE_TAG:
+        say()
+        say(f"[3/4] 변환 엔진: 고친 rhwp({ENGINE_TAG})가 이미 있습니다 — 건너뜁니다")
+        return True
+    say()
+    say(f"[3/4] 변환 엔진 내려받기 — 고친 rhwp {ENGINE_TAG} (약 12MB, 이 저장소 릴리스)")
+    if (download_engine(ENGINE_URL, ENGINE_SHA256, {"rhwp.exe", "LICENSE", "BUILD.json"})
+            and rhwp_version() == RHWP_VERSION and installed_tag() == ENGINE_TAG):
+        say(f"    완료 → {RHWP_EXE}")
+        return True
+    if rhwp_version() == RHWP_VERSION:
+        say("    고친 판을 받지 못해 지금 있는 rhwp 를 그대로 씁니다. 다시 실행하면 다시 받습니다.")
+        return True
+    say(f"    고친 판을 받지 못해 rhwp 원래 릴리스 {RHWP_VERSION} 를 받습니다 — 한컴 일치율이 낮습니다")
+    say("    (README 「5」: 시험지 1쪽 약 80% 대 98.6%). 나중에 이 설치를 다시 실행하세요.")
+    if download_engine(RHWP_URL, RHWP_SHA256, {"rhwp.exe", "LICENSE"}) and rhwp_version() == RHWP_VERSION:
+        say(f"    완료 → {RHWP_EXE}")
+        return True
+    say(f"    직접 받으려면: {ENGINE_URL}")
+    say(f"    zip 안의 rhwp.exe·LICENSE·BUILD.json 을 {RHWP_DIR} 에 두세요.")
+    return False
 
 
 def main() -> int:
@@ -176,14 +229,14 @@ def verify() -> int:
 
     ver = rhwp_version()
     if ver == RHWP_VERSION:
-        sys.path.insert(0, str(ENGINE_DIR))
-        from rhwp_cli import build_tag
-        tag = build_tag(RHWP_EXE)
-        if tag:
+        tag = installed_tag()
+        if tag == ENGINE_TAG:
             say(f"  OK   변환 엔진 rhwp {ver} — 고친 판 ({tag})")
+        elif tag:
+            say(f"  OK   변환 엔진 rhwp {ver} — 고친 판이지만 이 판이 기대하는 것과 다름 ({tag} ≠ {ENGINE_TAG})")
         else:
-            say(f"  OK   변환 엔진 rhwp {ver} — 릴리스")
-            say("       (한컴과 조판을 더 맞춘 고친 판은 engine\\build_rhwp.py 로 만듭니다 — 15~30분, 약 5GB)")
+            say(f"  OK   변환 엔진 rhwp {ver} — 원래 릴리스 (한컴 일치율이 낮다)")
+            say("       고친 판은 이 설치를 다시 실행하면 받고, engine\\build_rhwp.py 로 직접 만들 수도 있습니다")
     else:
         ok = False
         say(f"  실패  변환 엔진 rhwp — {'없음' if ver is None else ver + ' (기대 ' + RHWP_VERSION + ')'}")

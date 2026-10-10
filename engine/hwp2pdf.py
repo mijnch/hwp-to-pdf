@@ -388,7 +388,10 @@ def convert_one(src: Path, out: Path, cfg: dict, rhwp_version: str, job: Path, d
         pdf.docinfo["/Producer"] = pikepdf.String(f"rhwp {rhwp_version} + pikepdf")
         pdf.Root.Lang = pikepdf.String("ko-KR")
         pdf.Root.ViewerPreferences = pikepdf.Dictionary(DisplayDocTitle=True)
-        pdf.save(built, compress_streams=True, object_stream_mode=pikepdf.ObjectStreamMode.generate)
+        # deterministic_id: /ID 를 내용에서 만든다 — 기본값은 저장마다 무작위라, 같은 원본·같은 엔진이
+        # 같은 바이트를 내지 않았다(새 PC 설치 검증에서 산출물을 바이트로 대조하려면 필요하다).
+        pdf.save(built, compress_streams=True, object_stream_mode=pikepdf.ObjectStreamMode.generate,
+                 deterministic_id=True)
 
     # 3. 스스로 재기
     res = dict(pages=pages, warns=warns, flattened=int(tstat["flattened"]), spaces=int(tstat["spaces"]))

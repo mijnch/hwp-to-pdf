@@ -261,6 +261,15 @@ def full() -> int:
         d3 = [int(np.abs(render(files[i]) - render(raw, i)).max()) for i in range(n_a)]
         check(max(d3) == 0, f"쪽별 동시 내보내기가 한 번에 내보낸 것과 같은 그림 (최대 화소 차 {max(d3)})")
 
+        # 같은 원본·같은 엔진이면 같은 바이트 (끝의 표식 줄은 만든 시각이 들어가 뺀다)
+        twice = []
+        for k in range(2):
+            o = td / f"twice{k}.pdf"
+            hwp2pdf.convert_one(a, o, dict(hwp2pdf.DEFAULTS), ver, td / f"twice_job{k}", a.name)
+            data = o.read_bytes()
+            twice.append(data[:data.rfind(hwp2pdf.MARKER)])
+        check(twice[0] == twice[1], "같은 원본을 두 번 변환하면 PDF 가 바이트로 같음 (표식 줄 제외)")
+
         print("\n[3] 다시 실행 — 건너뛰기·재변환·보존")
         mt = {p: p.stat().st_mtime_ns for p in (pa, pb, pc)}
         (IN / "깨진.hwp").unlink()

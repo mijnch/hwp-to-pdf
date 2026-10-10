@@ -33,14 +33,14 @@ jobs:
           python -m pip install --quiet -r engine/requirements.txt
           python -m pip install --quiet pypdf pdfminer.six
 
-      - name: 단위 검증 81개
+      - name: 단위 검증 90개
         # rhwp 없이 설정·표식·대상 정하기·건너뛰기·암호·글자층 보정·미리보기 대조를 확인한다.
         run: python "engine/단위_검증.py"
 
-      - name: 변환 엔진 rhwp 받기 (지문 대조)
+      - name: 고친 변환 엔진 받기 (릴리스 자산, 지문 대조)
         run: python -c "import sys; sys.path.insert(0, 'engine'); import setup_env; sys.exit(0 if setup_env.fetch_rhwp() else 1)"
 
-      - name: 종단 검증 31항목 (교차 추출기 포함)
+      - name: 종단 검증 32항목 (교차 추출기 포함)
         # 합성 문서만 쓴다 — 로그에 실제 문서의 조각이 남지 않는다.
         # 러너에는 바탕(rhwp 의 명조 대체 글꼴)이 없다. 도구가 맑은 고딕으로 대신 그리는 경로를 함께 검증한다.
         run: python "engine/종단_검증.py"
