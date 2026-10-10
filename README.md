@@ -1,5 +1,9 @@
 # hwp-to-pdf
 
+[![tests](https://github.com/mijnch/hwp-to-pdf/actions/workflows/tests.yml/badge.svg)](https://github.com/mijnch/hwp-to-pdf/actions/workflows/tests.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python](https://img.shields.io/badge/python-3.14-blue.svg)
+
 > 한글 문서(.hwp / .hwpx)를 **한컴오피스 없이, 이 PC 안에서만** PDF 로 바꾸는 로컬 도구.
 > 보기 좋은 PDF 에서 그치지 않고, **PDF 에서 뽑아낸 글자가 본문과 같도록** 글자층을 바로잡고,
 > 변환이 원본과 얼마나 같은지 **스스로 재서** 다를 때 알려 준다.
@@ -45,7 +49,10 @@ equation-only lines, lost hanging indent beside a square-wrapped figure). Page-1
 agreement on the exam papers went from 80 % to 98.6 % — what remains is mostly font substitution —
 with no change on the 615 reference pages and all of rhwp's library tests passing.
 `engine/build_rhwp.py` rebuilds the patched engine from source; `engine/원본_대조.py` repeats the
-measurement.
+measurement. All eight fixes are reported upstream as rhwp issues.
+
+Built with an AI coding assistant (Claude Code), as the `Co-Authored-By` trailers show. Problem
+definition, measurement against Hancom's own renderings, and the decision to adopt each design are mine.
 </details>
 
 ## 어떻게 동작하나
@@ -167,6 +174,9 @@ rhwp 공개 시험 문서 312개 중 미리보기가 있는 256개(고친 엔진
 | 수식만 있는 줄의 들여쓰기 | 첫 줄 들여쓰기가 두 번 들어가 수식이 12~33px 오른쪽으로 |
 | 어울림 그림 옆 줄의 내어쓰기 | 그림 옆 줄들만 내어쓰기(20px)가 빠짐 |
 | 가운데 정렬 문단의 수식 줄 | 가운데가 아니라 단 왼끝에 붙음(40px) |
+
+여덟 곳 모두 rhwp 에 이슈로 올렸다 — 조판 변경 PR 은 독립된 한컴 PDF 와의 전 쪽 대조를 조건으로 하는데
+그것을 채울 수 없어서다(이슈 번호는 [engine/rhwp_patches/README.md](engine/rhwp_patches/README.md)).
 
 | 정답지 | rhwp 0.8.7 릴리스 | 고친 판 |
 |---|---:|---:|
@@ -309,6 +319,12 @@ engine/requirements.txt 판 고정
 
 산출물 PDF 맨 끝(`%%EOF` 뒤)에는 `%HWP2PDF {…}` 한 줄이 붙는다 — 원본의 크기·지문, 엔진 판, 그 앞
 내용의 지문. 이것으로 "이미 변환됨 / 원본이 바뀜 / 변환 뒤 누가 고침(보존) / 남이 만든 같은 이름 PDF(보호)"를 가린다.
+
+## 만든 방식
+
+코드와 문서는 AI 코딩 도구(Claude Code)와 함께 작성했다 — 커밋의 `Co-Authored-By` 표시가
+그 기록이다. 무엇을 풀지와 무엇을 받아들일지는 내가 정했다: 문제 정의, 실제 시험지와 한컴 원본으로 한
+실측과 대조, 그리고 각 설계를 채택할지의 판단이다.
 
 ## 라이선스
 
