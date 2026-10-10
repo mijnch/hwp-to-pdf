@@ -2,11 +2,13 @@
 """rhwp 명령줄 도구 호출.
 
 rhwp(https://github.com/edwardkim/rhwp, MIT)는 한컴 없이 HWP/HWPX 를 읽고 그리는
-Rust 프로그램이다. 이 도구는 그 릴리스 실행 파일을 engine\\rhwp 에 받아 두고 부른다.
+Rust 프로그램이다. 이 도구는 그 실행 파일을 engine\\rhwp 에 두고 부른다 — 릴리스(setup_env.py)
+또는 이 도구의 고침을 넣어 만든 판(build_rhwp.py, 출처는 engine\\rhwp\\BUILD.json).
 명령은 전부 '파일 하나 → 결과 파일' 이라 하위 프로세스로 충분하다.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -19,6 +21,26 @@ RHWP_EXE = ENGINE_DIR / "rhwp" / "rhwp.exe"
 
 # 콘솔 창을 띄우지 않는다 (bat 창 안에서 돌 때도 하위 창이 깜빡이지 않게)
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def build_tag(exe: Path = RHWP_EXE) -> str | None:
+    """실행 파일이 BUILD.json 의 고친 판이면 '바탕커밋.p고침지문' (예: 21ed640.p3f9a1c), 아니면 None.
+
+    판 표기(0.8.7)는 릴리스와 같으므로 이것을 덧붙여야 엔진이 바뀐 것을 안다 — 산출물 표식의
+    지문에 들어가 고친 판으로 바꾸면 이미 만든 PDF 도 새로 만든다.
+    """
+    exe = Path(exe)
+    try:
+        info = json.loads(exe.with_name("BUILD.json").read_text(encoding="utf-8"))
+        h = hashlib.sha256()
+        with open(exe, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        if h.hexdigest() != info["exe_sha256"]:
+            return None          # 표지가 다른 실행 파일을 가리킨다 (나중에 릴리스로 바꿈 등)
+        return f"{info['base'].rsplit('@', 1)[-1][:7]}.p{info['patch_sha256'][:6]}"
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
 
 
 class RhwpError(Exception):
@@ -82,9 +104,12 @@ class Rhwp:
         return p
 
     def version(self) -> str:
+        """판 표기. 고친 판이면 '0.8.7+21ed640.p3f9a1c' 처럼 출처를 덧붙인다."""
         p = self.run(["--version"], timeout=60)
         m = re.search(r"v?(\d+\.\d+\.\d+)", p.stdout + p.stderr)
-        return m.group(1) if m else (p.stdout.strip() or "?")
+        ver = m.group(1) if m else (p.stdout.strip() or "?")
+        tag = build_tag(self.exe)
+        return f"{ver}+{tag}" if tag else ver
 
     def info(self, src: Path) -> dict:
         p = self.run(["info", str(src), "--json"], timeout=300)

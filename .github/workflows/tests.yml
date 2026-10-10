@@ -33,7 +33,7 @@ jobs:
           python -m pip install --quiet -r engine/requirements.txt
           python -m pip install --quiet pypdf pdfminer.six
 
-      - name: 단위 검증 62개
+      - name: 단위 검증 78개
         # rhwp 없이 설정·표식·대상 정하기·건너뛰기·암호·글자층 보정·미리보기 대조를 확인한다.
         run: python "engine/단위_검증.py"
 
@@ -45,4 +45,4 @@ jobs:
         run: python "engine/종단_검증.py"
 
       - name: 엔진 구문 검사
-        run: python -m compileall -q engine/hwp2pdf.py engine/rhwp_cli.py engine/pdf_text.py engine/fidelity.py engine/setup_env.py
+        run: python -m compileall -q engine/hwp2pdf.py engine/rhwp_cli.py engine/pdf_text.py engine/fidelity.py engine/setup_env.py engine/build_rhwp.py engine/원본_대조.py

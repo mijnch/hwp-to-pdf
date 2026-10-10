@@ -26,3 +26,9 @@ __pycache__/
 
 # 중복 실행 방지 잠금 (런타임 산물)
 engine/.lock
+
+# 원본 대조 자료 (engine/원본_대조.py) — 남의 문서·사용자 문서를 저장소에 넣지 않는다
+원본대조/
+
+# 고친 rhwp 빌드 폴더 (engine/build_rhwp.py --keep, 약 5GB)
+engine/.build/

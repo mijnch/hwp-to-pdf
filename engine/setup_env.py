@@ -8,6 +8,7 @@
   2. engine\\venv 를 만든다  (폴더 안이므로 도구를 옮기면 같이 간다)
   3. engine\\requirements.txt 로 패키지를 설치한다
   4. 변환 엔진 rhwp 를 GitHub 릴리스에서 받아 engine\\rhwp 에 둔다 (지문 대조)
+     — 이미 있으면(고친 판 포함) 그대로 둔다. 고친 판은 engine\\build_rhwp.py 로 만든다
   5. 핵심 import 를 확인하고, 합성 문서 하나를 실제로 끝까지 변환해 본다
 
 왜 필요한가
@@ -175,7 +176,14 @@ def verify() -> int:
 
     ver = rhwp_version()
     if ver == RHWP_VERSION:
-        say(f"  OK   변환 엔진 rhwp {ver}")
+        sys.path.insert(0, str(ENGINE_DIR))
+        from rhwp_cli import build_tag
+        tag = build_tag(RHWP_EXE)
+        if tag:
+            say(f"  OK   변환 엔진 rhwp {ver} — 고친 판 ({tag})")
+        else:
+            say(f"  OK   변환 엔진 rhwp {ver} — 릴리스")
+            say("       (한컴과 조판을 더 맞춘 고친 판은 engine\\build_rhwp.py 로 만듭니다 — 15~30분, 약 5GB)")
     else:
         ok = False
         say(f"  실패  변환 엔진 rhwp — {'없음' if ver is None else ver + ' (기대 ' + RHWP_VERSION + ')'}")

@@ -328,9 +328,20 @@ layout = [(60, y, 660 - (y * 7) % 200) for y in range(80, 900, 26)]
 img = page_image(layout)
 pdf_path = TMP / "p.pdf"
 img.save(pdf_path, "PDF", resolution=72 * 724 / 595)
-for name, im, cond in [("같은 그림", img, lambda s: s is not None and s > 0.99),
-                       ("3화소 밀린 그림", page_image(layout, 3), lambda s: s is not None and s > 0.95),
-                       ("단이 무너진 그림", page_image([(380, y, 680) for y in range(80, 900, 52)]),
+
+
+def hancom(im):
+    """한컴 미리보기처럼 가로세로 0.58% 줄인다(왼쪽 위 기준)."""
+    k = fidelity.PREVIEW_SQUASH
+    pressed = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    out = Image.new("RGB", im.size, "white")
+    out.paste(pressed, (0, 0))
+    return out
+
+
+for name, im, cond in [("같은 그림", hancom(img), lambda s: s is not None and s > 0.99),
+                       ("3화소 밀린 그림", hancom(page_image(layout, 3)), lambda s: s is not None and s > 0.95),
+                       ("단이 무너진 그림", hancom(page_image([(380, y, 680) for y in range(80, 900, 52)])),
                         lambda s: s is not None and s < H.PREVIEW_WARN),
                        ("빈 미리보기", Image.new("RGB", (724, 1024), "white"), lambda s: s is None),
                        ("가로세로 비가 다른 그림", Image.new("RGB", (1024, 724), "black"), lambda s: s is None)]:
@@ -338,6 +349,69 @@ for name, im, cond in [("같은 그림", img, lambda s: s is not None and s > 0.
     im.save(pv)
     s = fidelity.preview_match(pdf_path, pv)
     check(f"미리보기 대조: {name}", cond(s), s)
+
+# 옛 한컴의 작은 미리보기(177×250)도 칸·찾는 범위를 같은 비율로 줄여 비교한다
+small = hancom(img).resize((177, 250), Image.LANCZOS)
+small.save(pv)
+s_small = fidelity.preview_match(pdf_path, pv)
+small_bad = hancom(page_image([(380, y, 680) for y in range(80, 900, 52)])).resize((177, 250), Image.LANCZOS)
+small_bad.save(pv)
+s_small_bad = fidelity.preview_match(pdf_path, pv)
+check("작은 미리보기(177×250): 같은 그림은 높고 무너진 단은 문턱 아래",
+      s_small is not None and s_small > 0.95 and s_small_bad is not None and s_small_bad < H.PREVIEW_WARN,
+      (s_small, s_small_bad))
+
+# 한컴 미리보기는 가로세로 0.58% 작다 — 같은 비율로 줄여 그린 우리 1쪽이 그것과 맞아야 한다
+hancom(img).save(pv)
+prev = fidelity._load_preview(pv)
+s_sq = fidelity.silhouette(fidelity.render_like_preview(pdf_path, prev), prev)
+s_raw = fidelity.silhouette(fidelity.render_like_preview(pdf_path, prev, squash=False), prev)
+check("한컴처럼 줄어든 미리보기와 줄여 그린 1쪽이 맞음 (줄이지 않으면 아래·오른쪽이 어긋남)",
+      s_sq > 99.0 and s_raw < s_sq - 3, (round(s_sq, 1), round(s_raw, 1)))
+check("preview_silhouette 는 줄여 그린 값", abs(fidelity.preview_silhouette(pdf_path, pv) - s_sq) < 1e-9)
+
+# 실루엣 일치율 — rhwp Visual Sweep 과 같은 2px 관용
+sil_a = page_image(layout)
+check("실루엣: 같은 그림 100", fidelity.silhouette(sil_a, sil_a) == 100.0)
+check("실루엣: 빈 두 쪽 100", fidelity.silhouette(Image.new("RGB", (50, 50), "white"),
+                                             Image.new("RGB", (50, 50), "white")) == 100.0)
+check("실루엣: 2px 밀림은 같다고 봄", fidelity.silhouette(sil_a, page_image(layout, 2)) == 100.0)
+s6 = fidelity.silhouette(sil_a, page_image(layout, 6))
+check("실루엣: 6px 밀림은 깎임", s6 < 90, round(s6, 1))
+light = Image.new("RGB", (60, 20), "white")
+ImageDraw.Draw(light).rectangle([10, 5, 49, 14], fill=(225, 225, 225))     # 문턱(232) 바로 아래
+lighter = Image.new("RGB", (60, 20), "white")
+ImageDraw.Draw(lighter).rectangle([10, 5, 49, 14], fill=(236, 236, 236))   # 문턱 바로 위
+check("실루엣: 문턱 경계의 비슷한 색은 일치로 봄", fidelity.silhouette(light, lighter) == 100.0)
+check("실루엣: 크기가 달라도 흰 바탕으로 채워 비교", fidelity.silhouette(sil_a, sil_a.crop((0, 0, 724, 1000))) > 95)
+
+# 고친 rhwp 판 알아보기 (engine\rhwp\BUILD.json)
+import hashlib  # noqa: E402
+import json  # noqa: E402
+fake_exe = TMP / "rhwp" / "rhwp.exe"
+fake_exe.parent.mkdir()
+fake_exe.write_bytes(b"MZ fake rhwp")
+check("BUILD.json 이 없으면 릴리스로 봄", R.build_tag(fake_exe) is None)
+build = dict(base="edwardkim/rhwp@21ed64071f81f35f37618717693bd30f727392c9", patch_sha256="89600ce8f575" + "0" * 52,
+             exe_sha256=hashlib.sha256(b"MZ fake rhwp").hexdigest())
+(fake_exe.parent / "BUILD.json").write_text(json.dumps(build), encoding="utf-8")
+check("BUILD.json 이 이 실행 파일을 가리키면 고친 판 표지", R.build_tag(fake_exe) == "21ed640.p89600c", R.build_tag(fake_exe))
+fake_exe.write_bytes(b"MZ other rhwp")
+check("실행 파일이 바뀌었으면(릴리스로 되돌림 등) 표지 없음", R.build_tag(fake_exe) is None)
+(fake_exe.parent / "BUILD.json").write_text("{깨짐", encoding="utf-8")
+check("BUILD.json 이 깨졌으면 표지 없음", R.build_tag(fake_exe) is None)
+check("표지가 바뀌면 산출물 지문도 바뀜 → 다시 만듦",
+      H.fingerprint("0.8.7") != H.fingerprint("0.8.7+21ed640.p89600c"))
+
+# 원본 대조 — rhwp 시험 문서는 git blob 지문으로 확인한다
+import 원본_대조 as C  # noqa: E402
+check("git blob 지문 (git hash-object 와 같음)", C.git_blob(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a")
+pair_dir = TMP / "쌍"
+pair_dir.mkdir()
+for n in ("가.hwp", "가.pdf", "나.hwpx", "다.pdf", "라.HWPX", "라.pdf"):
+    (pair_dir / n).write_bytes(b"x")
+check("같은 이름의 (문서, PDF) 쌍만 고름", [d.name for d, _ in C.find_pairs(pair_dir)] == ["가.hwp", "라.HWPX"],
+      [d.name for d, _ in C.find_pairs(pair_dir)])
 
 line, notes = H.summarize(dict(pages=3, seconds=1.2, preview=0.6, hangul=0.9, warns=["LAYOUT_X: a"]))
 check("낮은 점수는 확인 권장 문구로", len(notes) == 2 and "한컴 미리보기" in notes[0] and "90%" in notes[1], notes)

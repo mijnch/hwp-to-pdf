@@ -21,3 +21,5 @@
 *.hwp binary
 *.hwpx binary
 *.zip binary
+*.patch text eol=lf
+*.json text eol=lf
