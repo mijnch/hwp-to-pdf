@@ -403,6 +403,20 @@ check("BUILD.json 이 깨졌으면 표지 없음", R.build_tag(fake_exe) is None
 check("표지가 바뀌면 산출물 지문도 바뀜 → 다시 만듦",
       H.fingerprint("0.8.7") != H.fingerprint("0.8.7+21ed640.p89600c"))
 
+# rhwp 의 PDF 기본 대체 글꼴(바탕·맑은 고딕)이 없으면 있는 글꼴로 바꾼다
+fdir = TMP / "fonts"
+fdir.mkdir()
+check("바탕·맑은 고딕이 다 있으면 아무것도 바꾸지 않음",
+      ((fdir / "batang.ttc").write_bytes(b"x"), (fdir / "malgun.ttf").write_bytes(b"x"))
+      and R.pdf_font_args([fdir]) == ([], []))
+(fdir / "batang.ttc").unlink()
+args, notes = R.pdf_font_args([fdir])
+check("바탕이 없으면 명조 계열을 맑은 고딕으로 (GitHub 러너 형상)",
+      args == ["--fallback-serif", "맑은 고딕"] and len(notes) == 1 and "바탕" in notes[0], (args, notes))
+(fdir / "malgun.ttf").unlink()
+args, notes = R.pdf_font_args([fdir])
+check("둘 다 없으면 바꿀 것이 없고 글꼴 설치를 안내", args == [] and "한국어 보조 글꼴" in notes[0], (args, notes))
+
 # 원본 대조 — rhwp 시험 문서는 git blob 지문으로 확인한다
 import 원본_대조 as C  # noqa: E402
 check("git blob 지문 (git hash-object 와 같음)", C.git_blob(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a")

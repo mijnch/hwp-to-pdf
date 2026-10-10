@@ -43,6 +43,48 @@ def build_tag(exe: Path = RHWP_EXE) -> str | None:
         return None
 
 
+# rhwp 가 PDF 에서 명조·고딕 계열 글자에 쓰는 기본 대체 글꼴(Windows)과 그 파일.
+_PDF_FALLBACKS = (("--fallback-serif", "바탕", ("batang.ttc",)),
+                  ("--fallback-sans", "맑은 고딕", ("malgun.ttf",)))
+_font_args_cache: tuple[list[str], list[str]] | None = None
+
+
+def _font_dirs() -> list[Path]:
+    dirs = [Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"]
+    if os.environ.get("LOCALAPPDATA"):
+        dirs.append(Path(os.environ["LOCALAPPDATA"]) / "Microsoft" / "Windows" / "Fonts")
+    return dirs
+
+
+def pdf_font_args(font_dirs: list[Path] | None = None) -> tuple[list[str], list[str]]:
+    """(rhwp export-pdf 에 덧붙일 인자, 사용자에게 알릴 말).
+
+    rhwp 는 PDF 에서 명조 계열 글자를 바탕으로, 고딕 계열을 맑은 고딕으로 대신 그리는데, 그 글꼴이
+    없으면 경고만 내고 그 계열 글자를 빈칸으로 둔다(실측: 한국어 보조 글꼴이 없는 GitHub Windows
+    러너 — 바탕이 없어 본문 글자층 0%). 없는 쪽은 있는 쪽으로 대신하게 한다. 둘 다 있으면 아무것도
+    바꾸지 않는다. font_dirs 를 주지 않으면 결과를 한 번만 계산해 둔다.
+    """
+    global _font_args_cache
+    if font_dirs is None and _font_args_cache is not None:
+        return _font_args_cache
+    dirs = font_dirs if font_dirs is not None else _font_dirs()
+    have = {name: any((d / f).is_file() for d in dirs for f in files) for _, name, files in _PDF_FALLBACKS}
+    present = [name for _, name, _ in _PDF_FALLBACKS if have[name]]
+    args: list[str] = []
+    notes: list[str] = []
+    if not present:
+        notes.append("이 PC 에 바탕·맑은 고딕이 모두 없어 한글이 빈칸으로 나올 수 있습니다 — "
+                     "Windows 설정의 '언어'에서 한국어 보조 글꼴을 설치하세요")
+    else:
+        for opt, name, _ in _PDF_FALLBACKS:
+            if not have[name]:
+                args += [opt, present[0]]
+                notes.append(f"이 PC 에 {name} 글꼴이 없어 그 계열 글자를 {present[0]}으로 그립니다")
+    if font_dirs is None:
+        _font_args_cache = (args, notes)
+    return args, notes
+
+
 class RhwpError(Exception):
     """rhwp 가 문서를 처리하지 못했다. 메시지는 사용자에게 그대로 보여 줄 한국어."""
 
@@ -121,7 +163,7 @@ class Rhwp:
     def export_pdf(self, src: Path, dst: Path, page: int | None = None,
                    compat: str | None = None) -> tuple[dict, list[str]]:
         """PDF 로 내보낸다. (매니페스트, 경고 줄들) 을 돌려준다."""
-        args = ["export-pdf", str(src), "-o", str(dst), "--json"]
+        args = ["export-pdf", str(src), "-o", str(dst), "--json"] + pdf_font_args()[0]
         if page is not None:
             args += ["-p", str(page)]
         if compat:

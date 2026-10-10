@@ -120,6 +120,21 @@ def load_config(path: Path | None = None) -> dict:
     return cfg
 
 
+def with_font_substitution(rhwp_version: str) -> str:
+    """대체 글꼴이 없어 다른 글꼴로 바꿔 그리면 알리고, 엔진 표기에 그 사실을 붙인다.
+
+    표기는 산출물 지문에 들어가므로, 나중에 그 글꼴을 설치하면 이미 만든 PDF 도 다시 만든다.
+    """
+    from rhwp_cli import pdf_font_args
+    args, notes = pdf_font_args()
+    for note in notes:
+        log(f"⚠ {note}")
+    if args:
+        pairs = [f"{args[i].removeprefix('--fallback-')}={args[i + 1]}" for i in range(0, len(args), 2)]
+        rhwp_version += f" ({', '.join(pairs)})"
+    return rhwp_version
+
+
 def fingerprint(rhwp_version: str) -> str:
     # PDF 내용을 바꾸는 것만 넣는다 — 미리보기 대조·저장 위치는 결과물이 같다
     return f"rev{ENGINE_REV}|rhwp{rhwp_version}"
@@ -511,6 +526,7 @@ def main(argv: list[str]) -> int:
     except RhwpError as e:
         print(f"\n✘ 변환 엔진(rhwp)을 실행할 수 없습니다: {e}")
         return 1
+    rhwp_version = with_font_substitution(rhwp_version)
 
     for d in (IN_DIR, OUT_DIR):
         d.mkdir(exist_ok=True)
