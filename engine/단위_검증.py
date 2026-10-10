@@ -5,6 +5,8 @@ pikepdf·numpy·Pillow·pypdfium2 가 필요하다(engine\\venv 에 있다). 실
 
     engine\\venv\\Scripts\\python engine\\단위_검증.py
 """
+import atexit
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -35,6 +37,8 @@ def check(name, cond, detail=""):
 
 
 TMP = Path(tempfile.mkdtemp(prefix="hwp2pdf_unit_"))
+# 끝나면(검사가 예외로 멈춰도) 지운다 — 전에는 실행마다 %TEMP% 에 하나씩 쌓였다
+atexit.register(shutil.rmtree, TMP, ignore_errors=True)
 H.LOG_FILE = TMP / "실행기록.txt"          # 경고 기록이 도구 폴더로 가지 않게
 
 
