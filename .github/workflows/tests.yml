@@ -6,10 +6,18 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read        # 저장소를 읽기만 한다 — GITHUB_TOKEN 을 쓰기 권한 없이 발급받는다
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}   # 같은 브랜치에 연달아 푸시하면 앞 실행을 취소한다
+  cancel-in-progress: true
+
 jobs:
   verify:
     # 이 도구는 Windows 전용이므로 실제 대상 플랫폼·버전에서 검증한다.
     runs-on: windows-latest
+    timeout-minutes: 20   # 실제 실행은 1~2분. 러너가 멈춰도 기본값(6시간)까지 돌지 않게 한다
 
     # pwsh(PowerShell 7)는 스크립트를 UTF-8로 읽는다. Windows PowerShell 5.1이나
     # cmd 는 한글이 든 파일 이름을 깨뜨리므로 여기서는 쓰지 않는다.
@@ -28,17 +36,23 @@ jobs:
           python-version: '3.14'
 
       - name: 판 고정 패키지 설치
-        # pypdf·pdfminer 는 검증 전용이다 — 다른 추출기로도 글자층을 교차 확인한다.
-        run: |
-          python -m pip install --quiet -r engine/requirements.txt
-          python -m pip install --quiet pypdf pdfminer.six
+        run: python -m pip install --quiet -r engine/requirements.txt
 
-      - name: 단위 검증 90개
+      - name: 교차 확인용 추출기 설치 (engine/requirements-ci.txt — 판을 일부러 고정하지 않는다)
+        # pypdf·pdfminer 는 검증 전용이다 — 다른 추출기로도 글자층을 교차 확인한다.
+        # 새 판이 한글을 다르게 뽑으면 그것도 알아야 할 신호라서 최신판을 쓰고, 쓴 판을 로그에 남긴다.
+        run: |
+          python -m pip install --quiet -r engine/requirements-ci.txt
+          python -c "import importlib.metadata as m; print('pypdf', m.version('pypdf'), '· pdfminer.six', m.version('pdfminer.six'))"
+
+      - name: 단위 검증 94개
         # rhwp 없이 설정·표식·대상 정하기·건너뛰기·암호·글자층 보정·미리보기 대조를 확인한다.
         run: python "engine/단위_검증.py"
 
       - name: 고친 변환 엔진 받기 (릴리스 자산, 지문 대조)
-        run: python -c "import sys; sys.path.insert(0, 'engine'); import setup_env; sys.exit(0 if setup_env.fetch_rhwp() else 1)"
+        # fetch_rhwp 는 고친 판을 못 받으면 원래 릴리스로 물러나 True 를 돌려준다(사용자 PC 에서는 그게 맞다).
+        # CI 는 고친 판을 시험해야 하므로 설치된 표지가 ENGINE_TAG 인지까지 본다.
+        run: python -c "import sys; sys.path.insert(0, 'engine'); import setup_env; ok = setup_env.fetch_rhwp(); tag = setup_env.installed_tag(); print('설치된 엔진 표지:', tag); sys.exit(0 if ok and tag == setup_env.ENGINE_TAG else 1)"
 
       - name: 종단 검증 31항목 (교차 추출기 포함)
         # 합성 문서만 쓴다 — 로그에 실제 문서의 조각이 남지 않는다.

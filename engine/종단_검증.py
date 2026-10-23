@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """종단 검증 — 합성 한글 문서를 실제로 변환해 결과를 채점한다.
 
-    engine\\venv\\Scripts\\python engine\\종단_검증.py           전체 (약 1분)
+    engine\\venv\\Scripts\\python engine\\종단_검증.py           전체 (약 15초)
     engine\\venv\\Scripts\\python engine\\종단_검증.py --smoke   변환 한 건만 (환경 설치 확인용)
 
 사용자 문서는 쓰지 않는다. 시험 문서는 rhwp scaffold 로 그때그때 만든다(제목·개요·문단·표).

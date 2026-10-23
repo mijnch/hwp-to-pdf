@@ -283,7 +283,9 @@ def _space_ops(g: Glyph, spaces: str, widths, where: str):
     return [I([], op("q")), I([], op("BT")),
             I([pikepdf.Name(SPACE_FONT), round(g.size, 4)], op("Tf")),
             I([3], op("Tr")), I(tm, op("Tm")),
-            I([pikepdf.String(spaces)], op("Tj")),
+            # 원문의 공백 문자가 무엇이든(NBSP·전각 공백) 같은 수의 ASCII 공백으로 넣는다 — 그대로 넣으면
+            # WinAnsi 로 못 적어 pikepdf 가 UTF-16(þÿ…) 문자열로 만들고, 추출한 글자에 'þÿ' 가 섞인다.
+            I([pikepdf.String(" " * n)], op("Tj")),
             I([], op("ET")), I([], op("Q"))]
 
 

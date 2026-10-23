@@ -1,0 +1,6 @@
+# CI 전용 — 종단 검증이 글자층을 pdfium 말고 이 두 추출기로도 뽑아 본다(engine/종단_검증.py).
+# 실행 환경(engine/requirements.txt)에는 넣지 않는다.
+# 판은 일부러 고정하지 않는다: 새 판이 한글을 다르게 뽑으면 그것도 알아야 할 신호다.
+# CI 는 설치된 판을 로그에 찍는다.
+pypdf
+pdfminer.six
