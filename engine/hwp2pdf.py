@@ -47,7 +47,7 @@ ENGINE_REV = 1
 MARKER = b"%HWP2PDF "
 
 # 한컴 미리보기 대조 점수가 이보다 낮으면 '모양이 많이 다르다' 고 알린다.
-# 근거: README 「실측」 — rhwp 공개 시험 문서와 사용자 문서에서 정상 변환의 분포 아래쪽.
+# 근거: README 「4. 스스로 잰다 — 한컴 미리보기 대조」 — rhwp 공개 시험 문서와 사용자 문서에서 정상 변환의 분포 아래쪽.
 PREVIEW_WARN = 0.75
 # 글자층에서 한글 글자가 이보다 적게 남으면 알린다 (보정 후 실측 0.96~1.00)
 TEXT_WARN = 0.95
@@ -178,6 +178,8 @@ def read_marker(path: Path):
     try:
         meta = json.loads(line[len(MARKER):end if end >= 0 else None].decode("ascii"))
     except (ValueError, UnicodeDecodeError):
+        return "foreign", None
+    if not isinstance(meta, dict):        # 표식 자리에 JSON 객체가 아닌 값 — 우리 것이 아니다
         return "foreign", None
     rest = line[end + 1:] if end >= 0 else b""
     if rest.strip() or meta.get("body") != sha16(data[:k]):
@@ -372,11 +374,14 @@ def convert_one(src: Path, out: Path, cfg: dict, rhwp_version: str, job: Path, d
             raise RuntimeError(f"쪽 수가 맞지 않습니다 (문서 {pages}쪽, PDF {len(pdf.pages)}쪽)")
 
         # 2. 글자층 바로잡기
+        tree_err = None
         try:
             trees = rh.render_trees(work, job / "rt", compat)
-        except Exception:
+        except Exception as e:
             trees = []
+            tree_err = f"{type(e).__name__}: {e}"[:120]
         if len(trees) != pages:
+            tree_err = tree_err or f"렌더 트리 {len(trees)}쪽, 문서 {pages}쪽"
             trees = [None] * pages
         for page, tree in zip(pdf.pages, trees):
             st = pdf_text.fix_page(pdf, page, tree)
@@ -395,6 +400,8 @@ def convert_one(src: Path, out: Path, cfg: dict, rhwp_version: str, job: Path, d
 
     # 3. 스스로 재기
     res = dict(pages=pages, warns=warns, flattened=int(tstat["flattened"]), spaces=int(tstat["spaces"]))
+    if tree_err:
+        res["tree_err"] = tree_err
     try:
         reference = "\n".join(rh.export_text(work, job / "txt"))
         doc = pdfium.PdfDocument(str(built))
@@ -445,6 +452,10 @@ def summarize(res: dict) -> tuple[str, list[str]]:
         bits.append(f"글자층 {hc * 100:.0f}%")
         if hc < TEXT_WARN:
             notes.append(f"PDF 에서 뽑히는 한글이 본문의 {hc * 100:.0f}% 뿐입니다 — 복사·검색이 불완전할 수 있습니다")
+    if res.get("tree_err"):
+        # 글자 회수율은 한글 글자만 세므로 띄어쓰기가 빠져도 100% 로 나온다 — 따로 알린다
+        notes.append(f"낱말 사이 공백을 넣지 못했습니다(렌더 트리 실패: {res['tree_err']}) — "
+                     "뽑은 글자에서 띄어쓰기가 사라질 수 있습니다")
     if res.get("warns"):
         bits.append("rhwp 경고 " + ", ".join(sorted({w.split(":")[0] for w in res["warns"]})))
     return " · ".join(bits), notes

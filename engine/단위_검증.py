@@ -80,6 +80,11 @@ check("표식이 없으면 foreign", H.read_marker(f)[0] == "foreign")
 f.write_bytes(pdf_bytes + b"\n%HWP2PDF {broken\n")
 check("표식이 깨졌으면 foreign", H.read_marker(f)[0] == "foreign")
 check("없는 파일은 missing", H.read_marker(TMP / "없는.pdf")[0] == "missing")
+bad_json = []
+for tail in (b"\n%HWP2PDF 5\n", b"\n%HWP2PDF [1,2]\n", b"\n%HWP2PDF null\n"):
+    f.write_bytes(pdf_bytes + tail)
+    bad_json.append(H.read_marker(f))
+check("표식 자리에 객체가 아닌 JSON 이면 foreign (죽지 않음)", all(r == ("foreign", None) for r in bad_json), bad_json)
 
 
 # ── 대상 정하기 ──────────────────────────────────────────────────────
@@ -302,6 +307,9 @@ check("공백은 q…Q 로 감싸 Tr 3 이 뒤로 새지 않음",
       [str(i.operator) for i in ops] == ["q", "BT", "Tf", "Tr", "Tm", "Tj", "ET", "Q"]
       and ops[3].operands[0] == 3)
 check("공백은 앞 글자 폭만큼 뒤에", abs(float(ops[4].operands[4]) - (20 + 10)) < 1e-6, ops[4].operands)
+ops_nb = P._space_ops(g, "\u00a0\u3000", {"/fo0": ({1: 1000}, 0)}, "after")
+check("NBSP·전각 공백도 같은 수의 ASCII 공백으로 (UTF-16 'þÿ' 가 섞이지 않음)",
+      bytes(ops_nb[5].operands[0]) == b"  ", bytes(ops_nb[5].operands[0]))
 other = pikepdf.new()
 other.pages.append(pikepdf.Page(pikepdf.Dictionary(Type=Name.Page, MediaBox=[0, 0, 100, 100])))
 other.pages[0].Contents = other.make_stream(b"BT /F1 12 Tf (x) Tj ET")
@@ -364,6 +372,9 @@ s_small_bad = fidelity.preview_match(pdf_path, pv)
 check("작은 미리보기(177×250): 같은 그림은 높고 무너진 단은 문턱 아래",
       s_small is not None and s_small > 0.95 and s_small_bad is not None and s_small_bad < H.PREVIEW_WARN,
       (s_small, s_small_bad))
+hancom(img).resize((110, 156), Image.LANCZOS).save(pv)
+s_tiny = fidelity.preview_match(pdf_path, pv)
+check("칸 하나보다 작은 미리보기(110×156)는 0 점이 아니라 잴 수 없음(None)", s_tiny is None, s_tiny)
 
 # 한컴 미리보기는 가로세로 0.58% 작다 — 같은 비율로 줄여 그린 우리 1쪽이 그것과 맞아야 한다
 hancom(img).save(pv)
@@ -485,6 +496,9 @@ check("낮은 점수는 확인 권장 문구로", len(notes) == 2 and "한컴 �
 check("rhwp 조판 경고는 확인 권장이 아니라 요약 줄에", "rhwp 경고 LAYOUT_X" in line, line)
 line, notes = H.summarize(dict(pages=1, seconds=0.4, preview=None, hangul=None, warns=[]))
 check("잴 수 없으면 문구 없이", notes == [] and line == "1쪽 · 0.4초", line)
+line, notes = H.summarize(dict(pages=2, seconds=1.0, preview=0.9, hangul=1.0, warns=[],
+                               tree_err="RhwpError: 시간 초과"))
+check("렌더 트리가 실패하면 글자층 100% 여도 띄어쓰기 경고", len(notes) == 1 and "공백" in notes[0], notes)
 
 print(f"\n결과: {'전부 통과' if not fails else '실패 ' + ', '.join(fails)} ({passed}/{passed + len(fails)})")
 sys.exit(1 if fails else 0)

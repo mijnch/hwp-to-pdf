@@ -16,7 +16,7 @@
 | **원본 일치** | rhwp 를 한컴 원본과 맞대 8곳 고친 판을 쓴다 — 실제 시험지 4개의 한컴 1쪽 실루엣 일치율 **80 → 98.6%** |
 | **자가 검사** | 한컴이 문서에 넣어 둔 1쪽 미리보기와 대조 · 글자층 회수율 — 문턱 아래면 "확인 권장" |
 | **속도** | 2~3쪽 시험지 약 2초 · 157쪽 문서 24초 (쪽마다 동시에 그린다) |
-| **검증** | 단위 검증 90개 + 합성 문서 종단 검증 30항목(CI 31) + rhwp 공개 시험 문서 312개 + 한컴 PDF 34쌍 615쪽 |
+| **검증** | 단위 검증 94개 + 합성 문서 종단 검증 30항목(CI 31) + rhwp 공개 시험 문서 312개 + 한컴 PDF 34쌍 615쪽 |
 | **설치** | `환경 설치.bat` 더블클릭 (Python 3.14 만 미리 있으면 된다) |
 
 <details>
@@ -47,7 +47,8 @@ bullet, all-caps Greek equation commands, picture+caption centring in table cell
 table height from the stored line ladder, double first-line indent and lost centring on
 equation-only lines, lost hanging indent beside a square-wrapped figure). Page-1 silhouette
 agreement on the exam papers went from 80 % to 98.6 % — what remains is mostly font substitution —
-with no change on the 615 reference pages and all of rhwp's library tests passing.
+while the 615 reference pages held level (mean 88.11 → 88.14, no page worse) and all of rhwp's
+library tests pass.
 `engine/build_rhwp.py` rebuilds the patched engine from source; `engine/원본_대조.py` repeats the
 measurement. All eight fixes are reported upstream as rhwp issues.
 
@@ -228,7 +229,7 @@ engine\venv\Scripts\python engine\단위_검증.py
 engine\venv\Scripts\python engine\종단_검증.py
 ```
 
-**단위 검증 90개** — rhwp 없이 몇 초. 설정 읽기, 산출물 표식(우리 것 / 수정됨 / 남의 것), 출력 이름
+**단위 검증 94개** — rhwp 없이 몇 초. 설정 읽기, 산출물 표식(우리 것 / 수정됨 / 남의 것), 출력 이름
 충돌, 건너뛰기·재변환 판정, 암호 문서 질문, rhwp 오류 문구 정리, 그리고 rhwp 모양을 흉내 낸 PDF 로
 글자층 보정(굵은 글씨·클립·밑줄 경계·글자 수 불일치 묶음, 공백 위치, q/Q 짝, 원래 그리기 명령 보존),
 미리보기 대조(같은 그림·밀린 그림·무너진 단·빈 그림, 한컴식 세로 눌림), 실루엣 일치율(2px 관용·문턱
@@ -241,7 +242,8 @@ engine\venv\Scripts\python engine\종단_검증.py
 다시 실행 시 건너뛰기·원본이 바뀐 것만 재변환·수정된 PDF 보존·남의 PDF 보호, 끌어다 놓기(파일·폴더),
 원본 옆 저장, 미리보기 대조(같은 그림 / 무너진 그림 / 없음), 같은 원본을 두 번 변환하면 바이트로 같은 PDF.
 사용자 문서는 쓰지 않는다.
-CI 는 pypdf·pdfminer 를 더 깔아 그 둘로도 글자층을 뽑아 본다 — 실행 환경에는 넣지 않는다. 러너에는 바탕이
+CI 는 pypdf·pdfminer 를 더 깔아(`engine/requirements-ci.txt` — 최신판을 쓰고 판을 로그에 남긴다) 그 둘로도
+글자층을 뽑아 본다 — 실행 환경에는 넣지 않는다. 러너에는 바탕이
 없어 명조를 맑은 고딕으로 그리는데, 그때는 rhwp 가 굵은 글씨를 빠뜨리지 않아 「탈락을 메움」 한 항목이 빠진다(31항목).
 
 `환경 설치.bat` 도 끝에서 합성 문서 하나를 실제로 끝까지 변환해 본다 — import 가 된다고 도구가
@@ -309,7 +311,7 @@ engine/원본_대조.py      한컴 미리보기·한컴 PDF 와 맞대 일치�
 engine/원본대조_목록.json rhwp 저장소의 한컴 PDF 34쌍 (커밋·git 지문 고정)
 engine/build_rhwp.py    고친 rhwp 를 소스에서 빌드해 설치
 engine/rhwp_patches/    rhwp 고침과 근거
-engine/단위_검증.py      단위 검증 90개
+engine/단위_검증.py      단위 검증 94개
 engine/종단_검증.py      합성 문서로 끝까지 돌려 채점
 engine/setup_env.py     가상환경 · 패키지 · rhwp(지문 대조) · 실제 변환 시험
 engine/requirements.txt 판 고정
@@ -329,5 +331,6 @@ engine/requirements.txt 판 고정
 ## 라이선스
 
 MIT. 변환 엔진 rhwp 는 MIT(© Edward Kim), 받아 쓰는 라이브러리는 pikepdf(MPL-2.0),
-pypdfium2(Apache-2.0/BSD-3), NumPy(BSD-3), Pillow(MIT-CMU), lxml(BSD-3).
+pypdfium2(Apache-2.0/BSD-3), NumPy(BSD-3), Pillow(MIT-CMU), lxml(BSD-3),
+packaging(Apache-2.0/BSD-2).
 "한글", "한컴", "HWP", "HWPX" 는 한글과컴퓨터의 상표이며 이 도구는 한글과컴퓨터와 관계가 없다.

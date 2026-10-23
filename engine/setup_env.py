@@ -70,8 +70,8 @@ def find_python() -> str | None:
             args = [exe, "-3.14"] if cand == "py" else [exe]
             out = subprocess.run(args + ["-c", "import sys;print('%d.%d' % sys.version_info[:2]);print(sys.executable)"],
                                  capture_output=True, text=True, timeout=30)
-            lines = out.stdout.split()
-            if lines and lines[0] == "3.14":
+            lines = [ln.strip() for ln in out.stdout.splitlines()]   # 경로에 공백이 있을 수 있다(C:\Program Files)
+            if len(lines) >= 2 and lines[0] == "3.14" and Path(lines[1]).is_file():
                 return lines[1]
         except Exception:
             pass

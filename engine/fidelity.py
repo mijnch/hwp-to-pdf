@@ -70,8 +70,11 @@ def _ink(img) -> np.ndarray:
     return 1.0 - np.asarray(g, dtype=np.float32) / 255.0
 
 
-def _one_way(a: np.ndarray, b: np.ndarray) -> float:
-    """a 의 칸마다 b 의 주변(±REACH)에서 가장 잘 맞는 자리의 상관계수를, a 의 잉크량으로 가중평균."""
+def _one_way(a: np.ndarray, b: np.ndarray) -> float | None:
+    """a 의 칸마다 b 의 주변(±REACH)에서 가장 잘 맞는 자리의 상관계수를, a 의 잉크량으로 가중평균.
+
+    잴 칸이 하나도 없으면(그림이 칸보다 작거나 칸마다 잉크가 거의 없으면) None — 0 은 '전혀 다름' 이다.
+    """
     from numpy.lib.stride_tricks import sliding_window_view
     H, W = a.shape
     T, R = TILE, REACH
@@ -95,7 +98,7 @@ def _one_way(a: np.ndarray, b: np.ndarray) -> float:
             c = (zb * za).sum(axis=(2, 3)) / (na * np.maximum(nb, 1e-6))
             num += wa * max(float(c.max()), 0.0)
             den += wa
-    return num / den if den else 0.0
+    return num / den if den else None
 
 
 def _load_preview(preview_path):
@@ -151,6 +154,8 @@ def preview_match(pdf_path, preview_path) -> float | None:
     if a.sum() < 5 or b.sum() < 5:        # 빈 쪽 — 비교할 잉크가 없다
         return None
     s1, s2 = _one_way(a, b), _one_way(b, a)
+    if s1 is None or s2 is None:          # 잴 칸이 없다 — 비교할 수 없음
+        return None
     if s1 + s2 <= 0:
         return 0.0
     return 2 * s1 * s2 / (s1 + s2)

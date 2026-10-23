@@ -187,7 +187,12 @@ def install(exe: Path) -> None:
         exe_sha256=sha256(target),
         built=time.strftime("%Y-%m-%d %H:%M"),
     )
-    (RHWP_DIR / "BUILD.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    build_json = RHWP_DIR / "BUILD.json"
+    build_prev = RHWP_DIR / "BUILD.json.prev"
+    build_prev.unlink(missing_ok=True)
+    if build_json.is_file():          # 되돌릴 때 엔진 지문이 바뀌지 않게 출처 표지도 함께 둔다
+        shutil.copy2(build_json, build_prev)
+    build_json.write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     say("  → 합성 문서로 변환 시험")
     py = ENGINE_DIR / "venv" / "Scripts" / "python.exe"
     p = subprocess.run([str(py if py.is_file() else sys.executable), str(ENGINE_DIR / "종단_검증.py"), "--smoke"],
@@ -195,7 +200,10 @@ def install(exe: Path) -> None:
     if p.returncode != 0:
         if prev.is_file():
             shutil.copy2(prev, target)
-        (RHWP_DIR / "BUILD.json").unlink(missing_ok=True)
+        if build_prev.is_file():
+            shutil.copy2(build_prev, build_json)
+        else:
+            build_json.unlink(missing_ok=True)
         raise SystemExit("  [오류] 새 판이 변환 시험을 통과하지 못해 되돌렸습니다.\n" + p.stdout[-1500:] + p.stderr[-800:])
     say(f"  OK  설치: {target}")
 

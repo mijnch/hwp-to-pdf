@@ -1,0 +1,23 @@
+# GitHub 가 이 파일을 읽어 저장소 페이지에 "Cite this repository" 를 띄운다 (Citation File Format 1.2.0).
+cff-version: 1.2.0
+message: "이 저장소를 인용할 때는 아래 정보를 써 주세요. / If you use this software, please cite it as below."
+type: software
+title: "hwp-to-pdf: 한글 문서(.hwp/.hwpx)를 한컴오피스 없이 글자까지 맞는 PDF로"
+authors:
+  - family-names: Choi
+    given-names: Minjoon
+    email: mijnch@gmail.com
+repository-code: "https://github.com/mijnch/hwp-to-pdf"
+url: "https://github.com/mijnch/hwp-to-pdf"
+license: MIT
+keywords:
+  - hwp
+  - hwpx
+  - pdf
+  - hancom
+  - rhwp
+  - pikepdf
+  - document-conversion
+  - korean
+  - offline
+abstract: "오픈소스 렌더러 rhwp로 한글 문서를 PDF로 그리되, 깨진 글자층을 바로잡아 추출기 4종에서 한글 100%가 뽑히게 하고, 한컴 원본과 대조해 고친 조판을 쓰며, 변환마다 한컴 미리보기와 스스로 대조한다."
