@@ -1,0 +1,420 @@
+diff --git a/src/renderer/equation/fixtures/m09_expand/over_greek.golden b/src/renderer/equation/fixtures/m09_expand/over_greek.golden
+index 10b7776c..292e5fab 100644
+--- a/src/renderer/equation/fixtures/m09_expand/over_greek.golden
++++ b/src/renderer/equation/fixtures/m09_expand/over_greek.golden
+@@ -5,22 +5,22 @@ honesty: implemented-variant
+ 
+ === ast ===
+ Fraction {
+-    numer: Text(
+-        "ALPHA",
++    numer: MathSymbol(
++        "Α",
+     ),
+-    denom: Text(
+-        "BETA",
++    denom: MathSymbol(
++        "Β",
+     ),
+ }
+ 
+ === layout ===
+-Fraction x=0.0000 y=0.0000 w=76.2500 h=48.8000 bl=29.4000
++Fraction x=0.0000 y=0.0000 w=21.0000 h=48.8000 bl=29.4000
+   numer:
+-    Text("ALPHA") x=4.0000 y=4.0000 w=68.2500 h=20.0000 bl=16.0000
++    MathSymbol("Α") x=4.0000 y=4.0000 w=13.0000 h=20.0000 bl=16.0000
+   denom:
+-    Text("BETA") x=10.8250 y=24.8000 w=54.6000 h=20.0000 bl=16.0000
++    MathSymbol("Β") x=4.0000 y=24.8000 w=13.0000 h=20.0000 bl=16.0000
+ 
+ === svg ===
+-<text x="4.00" y="20.00" font-size="20.00" fill="#000000" font-style="italic" font-family="'Latin Modern Math', 'STIX Two Text', 'STIX Two Math', 'Times New Roman', 'Times', serif">ALPHA</text>
+-<line x1="1.00" y1="24.40" x2="75.25" y2="24.40" stroke="#000000" stroke-width="0.80"/>
+-<text x="10.82" y="40.80" font-size="20.00" fill="#000000" font-style="italic" font-family="'Latin Modern Math', 'STIX Two Text', 'STIX Two Math', 'Times New Roman', 'Times', serif">BETA</text>
++<text x="4.00" y="20.00" font-size="20.00" fill="#000000" font-family="'Latin Modern Math', 'STIX Two Text', 'STIX Two Math', 'Times New Roman', 'Times', serif">Α</text>
++<line x1="1.00" y1="24.40" x2="20.00" y2="24.40" stroke="#000000" stroke-width="0.80"/>
++<text x="4.00" y="40.80" font-size="20.00" fill="#000000" font-family="'Latin Modern Math', 'STIX Two Text', 'STIX Two Math', 'Times New Roman', 'Times', serif">Β</text>
+diff --git a/src/renderer/equation/symbols.rs b/src/renderer/equation/symbols.rs
+index 595ea2a5..3d4846b0 100644
+--- a/src/renderer/equation/symbols.rs
++++ b/src/renderer/equation/symbols.rs
+@@ -592,6 +592,16 @@ pub fn lookup_symbol(cmd: &str) -> Option<&'static str> {
+         return Some(s);
+     }
+ 
++    // 1.5차: 모두 대문자로 쓴 그리스 문자 이름(`DELTA`, `OMEGA`)은 한/글에서 대문자
++    // 그리스 문자다 — 사용자 물리 시험지의 `DELTA T` 가 한컴 미리보기에는 ΔT 로 그려졌다.
++    // 첫 글자만 대문자인 표기(`Delta`)와 같은 기호이므로 그 표기로 바꿔 찾는다.
++    if cmd.len() >= 2 && cmd.bytes().all(|b| b.is_ascii_uppercase()) {
++        let title = format!("{}{}", &cmd[..1], cmd[1..].to_ascii_lowercase());
++        if let Some(s) = GREEK_UPPER.get(title.as_str()) {
++            return Some(s);
++        }
++    }
++
+     // 2차: 대문자 변환 후 재시도 (SPECIAL_SYMBOLS, OPERATORS, BIG_OPERATORS, BRACKETS)
+     let upper = cmd.to_ascii_uppercase();
+     if upper != cmd {
+@@ -673,6 +683,10 @@ mod tests {
+     fn test_greek_upper() {
+         assert_eq!(lookup_symbol("Gamma"), Some("Γ"));
+         assert_eq!(lookup_symbol("Omega"), Some("Ω"));
++        assert_eq!(lookup_symbol("DELTA"), Some("Δ"));
++        assert_eq!(lookup_symbol("OMEGA"), Some("Ω"));
++        assert_eq!(lookup_symbol("delta"), Some("δ"));
++        assert_eq!(lookup_symbol("TIMES"), Some("×"));
+     }
+ 
+     #[test]
+diff --git a/src/renderer/height_measurer.rs b/src/renderer/height_measurer.rs
+index b92c59e3..e4869d13 100644
+--- a/src/renderer/height_measurer.rs
++++ b/src/renderer/height_measurer.rs
+@@ -973,6 +973,106 @@ pub(crate) fn fit_stored_inline_picture_frame(
+     Some(fitted)
+ }
+ 
++/// 저장 HWPX 인라인 1행 표에서 측정기가 셀 줄높이+줄간격 합으로 행을 키운 경우,
++/// 한/글이 저장한 줄 사슬과 표 높이가 함께 증언하는 높이로 되돌린다.
++///
++/// 셀 안 줄은 저장 vpos 에 놓이는데(배치도 그렇게 그린다) 측정은 줄높이+줄간격을
++/// 더한다. 한/글이 어떤 줄을 앞당겨 저장한 셀에서는 그 합이 사슬 끝보다 크다
++/// (사용자 기출문제지 1번 칸: 수식 줄 다음 vpos 가 합보다 200HU 앞 → 행 +2.6px, 표 아래
++/// 전체 +2.6px. 한컴 미리보기의 아래 테두리는 저장 표 높이와 맞았다).
++/// 합이 맞는 셀도 있으므로(KTX 목차 — 위 #2226 반례) 사슬만으로 정하지 않는다.
++/// 한 행의 어떤 셀에서 `사슬 끝 + 위아래 안 여백` 이 표 개체 높이와 **정확히** 같고,
++/// 그 셀의 사슬이 온전하며(첫 줄 0, 엄격히 증가, 글자처럼 취급하지 않는 개체 없음),
++/// 다른 어느 셀의 사슬도 그보다 길지 않을 때만 행을 표 높이로 줄인다.
++/// 또 줄이는 양이 저장 줄 사슬의 가장 작은 줄높이의 절반보다 작아야 한다 — 대체 글꼴로 글이
++/// 한 줄 더 넘친 칸(opengov 36382399 머리 표: 저장 한 줄 → rhwp 두 줄, 초과 17.3px)은 초과분이
++/// 적어도 한 줄이라 여기서 걸러진다. 저장 높이를 강제하면 넘친 줄이 칸 밖으로 나간다.
++pub fn fit_stored_inline_row_to_stored_ladder(
++    measured: &MeasuredTable,
++    table: &Table,
++    dpi: f64,
++) -> Option<MeasuredTable> {
++    if !table.common.treat_as_char
++        || table.row_count != 1
++        || measured.row_heights.len() != 1
++        || table.common.height == 0
++        || table.common.height >= 0x8000_0000
++        || table.cells.is_empty()
++        || table.cells.iter().any(|cell| cell.row_span != 1 || cell.text_direction != 0)
++    {
++        return None;
++    }
++    let target = i64::from(table.common.height);
++    let height = hwpunit_to_px(table.common.height as i32, dpi);
++    if measured.row_heights[0] <= height + 0.5 {
++        return None;
++    }
++    let chain_end = |cell: &crate::model::table::Cell| -> Option<i64> {
++        let mut previous: Option<i32> = None;
++        let mut end = 0i64;
++        for para in &cell.paragraphs {
++            if para.line_segs.is_empty() || para.stored_text_partition_is_dirty() {
++                return None;
++            }
++            if para.controls.iter().any(|c| {
++                matches!(
++                    c,
++                    Control::Table(_) | Control::Shape(_) | Control::Picture(_) | Control::Equation(_)
++                ) && !c.is_treat_as_char_object()
++            }) {
++                return None;
++            }
++            for seg in &para.line_segs {
++                if seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
++                    || seg.vertical_pos < 0
++                    || seg.line_height <= 0
++                    || seg.is_first_line_of_page()
++                    || seg.is_first_line_of_column()
++                {
++                    return None;
++                }
++                match previous {
++                    None if seg.vertical_pos != 0 => return None,
++                    Some(pos) if seg.vertical_pos <= pos => return None,
++                    _ => {}
++                }
++                previous = Some(seg.vertical_pos);
++                end = end.max(i64::from(seg.vertical_pos) + i64::from(seg.line_height));
++            }
++        }
++        previous.map(|_| end)
++    };
++    let mut witnessed = false;
++    for cell in &table.cells {
++        let pad = cell.effective_padding(&table.padding);
++        let pad_v = i64::from(pad.top) + i64::from(pad.bottom);
++        match chain_end(cell) {
++            Some(end) if end + pad_v == target => witnessed = true,
++            Some(end) if end + pad_v > target => return None,
++            _ => {}
++        }
++    }
++    if !witnessed {
++        return None;
++    }
++    let min_line_hu = table
++        .cells
++        .iter()
++        .flat_map(|cell| cell.paragraphs.iter())
++        .flat_map(|para| para.line_segs.iter())
++        .map(|seg| seg.line_height)
++        .filter(|lh| *lh > 0)
++        .min()?;
++    if measured.row_heights[0] - height >= hwpunit_to_px(min_line_hu, dpi) / 2.0 {
++        return None;
++    }
++    let mut fitted = measured.clone();
++    fitted.total_height += height - fitted.row_heights[0];
++    fitted.row_heights[0] = height;
++    fitted.cumulative_heights = vec![0.0, height];
++    Some(fitted)
++}
++
+ /// 저장 HWPX 인라인 표에서 마지막 LINE_SEG 줄간격을 측정기가
+ /// 행 높이에 한 번 더 실은 경우, 저장 cellSz 경계로 되돌린다.
+ ///
+diff --git a/src/renderer/layout.rs b/src/renderer/layout.rs
+index 68f7d94c..bbec6015 100644
+--- a/src/renderer/layout.rs
++++ b/src/renderer/layout.rs
+@@ -6945,7 +6945,10 @@ impl LayoutEngine {
+             // - last paragraph 가 TAC 헤더 띠/ `<...>` solo 가 아닐 것 — pi=81/pi=127
+             //   형식의 ls=480/600 HU 는 한컴 의도 간격이므로 보존. solo 판단은
+             //   진입·이탈과 같은 1mm 이하를 사용한다(pi=148의 1mm 포함).
+-            let last_para_idx = col_content.items.last().and_then(|it| match it {
++            // 단의 마지막 항목이 그 문단에 앵커된 도형(단 구분 세로선 등)이면 문단을 놓친다.
++            // 도형은 흐름 높이를 소비하지 않으므로 그 앞의 마지막 문단·표 항목을 쓴다
++            // (시험지 서식: 1단 안내 구역의 마지막 문단에 2단 구분선이 앵커됨 → 뒤 줄간격 미차감).
++            let last_para_idx = col_content.items.iter().rev().find_map(|it| match it {
+                 PageItem::FullParagraph { para_index }
+                 | PageItem::PartialParagraph { para_index, .. }
+                 | PageItem::Table { para_index, .. } => Some(*para_index),
+@@ -6975,7 +6978,37 @@ impl LayoutEngine {
+             } else {
+                 0.0
+             };
+-            let y_offset_no_trailing = (y_offset - last_para_trailing_ls).max(0.0);
++            let mut y_offset_no_trailing = (y_offset - last_para_trailing_ls).max(0.0);
++            // 다단 구역에 글자처럼 취급 표 한 줄(시험지 머리 표)만 있으면 구역 끝은 그 줄의
++            // 저장 아래 끝(vpos+lh)이다. 순차 y 는 배치 방식(글뒤로/자리차지)에 따라 뒤
++            // 줄간격의 절반 또는 전부를 더하는데, 한컴은 두 방식 모두 같은 자리에서 다음
++            // 구역을 시작한다(사용자 시험지 2종 미리보기 실측: 다음 구역 시작 동일).
++            if !prev_zone_was_solo && zone_layout.column_areas.len() >= 2 {
++                let mut paras = col_content.items.iter().filter_map(|it| match it {
++                    PageItem::FullParagraph { para_index }
++                    | PageItem::PartialParagraph { para_index, .. }
++                    | PageItem::Table { para_index, .. } => Some(*para_index),
++                    _ => None,
++                });
++                if let Some(first) = paras.next() {
++                    if paras.all(|pi| pi == first) {
++                        if let Some(p) = paragraphs.get(first) {
++                            let single_tac_table_line = p.line_segs.len() == 1
++                                && p.controls.iter().any(|c| {
++                                    matches!(c, Control::Table(t) if t.common.treat_as_char)
++                                });
++                            if single_tac_table_line {
++                                let seg = &p.line_segs[0];
++                                let bottom = col_area.y
++                                    + hwpunit_to_px(seg.vertical_pos + seg.line_height, self.dpi);
++                                if bottom < y_offset_no_trailing {
++                                    y_offset_no_trailing = bottom;
++                                }
++                            }
++                        }
++                    }
++                }
++            }
+ 
+             if y_offset_no_trailing > prev_zone_y_end {
+                 prev_zone_y_end = y_offset_no_trailing;
+diff --git a/src/renderer/layout/paragraph_layout.rs b/src/renderer/layout/paragraph_layout.rs
+index dfea534a..f2c5f137 100755
+--- a/src/renderer/layout/paragraph_layout.rs
++++ b/src/renderer/layout/paragraph_layout.rs
+@@ -584,10 +584,28 @@ fn bullet_marker_text(
+     }
+     // Bullet: numbering_id(1-based)로 Bullet 참조
+     let bullet_id = para_style.numbering_id;
+-    if bullet_id == 0 {
+-        return None;
+-    }
+-    let bullet = styles.bullets.get((bullet_id - 1) as usize)?;
++    // 참조가 비었거나(0) 정의가 없는 글머리표 문단도 한/글은 기본 글머리표 '●' 를 그린다
++    // (사용자 시험지 2종: 글머리표 정의 0개 + 문단 머리=글머리표·ID 0 → 한컴 미리보기에 ●).
++    // 기본값은 한/글이 새 글머리표에 쓰는 문단 머리와 같다: 왼쪽 정렬, 자동 내어쓰기,
++    // 본문과의 거리 50%, 글자 모양은 문단 것을 따른다.
++    let default_bullet;
++    let bullet = match bullet_id
++        .checked_sub(1)
++        .and_then(|i| styles.bullets.get(i as usize))
++    {
++        Some(b) => b,
++        None => {
++            default_bullet = crate::model::style::Bullet {
++                attr: 1 << 3,
++                width_adjust: 0,
++                text_distance: 50,
++                char_shape_id: u32::MAX,
++                bullet_char: '●',
++                ..Default::default()
++            };
++            &default_bullet
++        }
++    };
+     // U+FFFF는 이미지 글머리표 표시자 — 문자 렌더링 불가, 건너뜀
+     if bullet.bullet_char == '\u{FFFF}' {
+         return None;
+@@ -4432,7 +4450,15 @@ impl LayoutEngine {
+                         indent,
+                         visual_line_idx,
+                         // [Task #1472] 변환본은 effective indent 불변 위해 scale 절반.
+-                        (if equation_tac_line_flow.is_some() && cell_ctx.is_none() {
++                        // 본문 흐름(미주·HWP3 변환본 아님)은 1.0 — 일반 글줄(TextLine)과 같은
++                        // 원점이다. 2.0 이면 첫 줄 들여쓰기가 두 번 들어가 수식이 줄 시작보다
++                        // 그만큼 오른쪽에 놓였다(사용자 HWPX 시험지: indent 4890 → +32.6px,
++                        // 1890 → +12.6px. 한컴 미리보기의 수식 왼끝은 글줄 시작과 맞았다).
++                        (if equation_tac_line_flow.is_some()
++                            && cell_ctx.is_none()
++                            && (hwp3_indent_scale != 1.0
++                                || para_index >= self.endnote_para_base.get())
++                        {
+                             2.0
+                         } else {
+                             1.0
+@@ -5757,8 +5783,12 @@ impl LayoutEngine {
+                 && styled_margin_left + margin_right >= effective_col_w;
+             // 저장 줄의 cs가 문단의 왼쪽 여백 자체이면 완성 줄 상자에 같은 여백을
+             // 두 번 더하지 않는다. 셀의 cs/안쪽 여백 계약과는 구분한다 (#6706).
++            // cs 가 실제로 여백을 담을 때(cs > 0)만이다 — cs=0·여백 0 은 우연히 같을 뿐이라,
++            // 그 판정으로 여백을 지우면 내어쓰기까지 사라져 어울림 그림 옆 줄이 단 왼끝에
++            // 붙었다(사용자 HWPX 시험지 7번: 내어쓰기 19.9px 누락, 같은 문단의 넓은 줄은 정상).
+             let stored_inline_own_margin = uses_stored_segment_geometry
+                 && cell_ctx.is_none()
++                && comp_line.column_start > 0
+                 && cs_is_own_margin
+                 && stored_tac_assignment.is_some();
+             let (effective_margin_left, effective_margin_right) = if physical_frame_rows
+@@ -6362,7 +6392,11 @@ impl LayoutEngine {
+             // Distribute/Center 의 잔여 폭 중앙 오프셋을 적용하면 한컴과 달리 수식 블록이
+             // 열 안쪽으로 밀린다. 그림/표 TAC는 문단 정렬 폭을 따라야 하며, 표 셀 안 수식은
+             // 기존처럼 셀 정렬을 따른다.
++            // 단 저장 줄이 시작 위치를 담지 않으면(cs == 0) 문단 정렬을 따른다 — 빈 run 경로의
++            // #5583 과 같은 계약(사용자 HWPX 시험지: 가운데 정렬 문단의 [수식][공백] 줄을
++            // 한컴은 가운데에 그렸고 rhwp 는 단 왼끝에 붙였다, 40px 차).
+             let non_cell_tac_only_line = cell_ctx.is_none()
++                && comp_line.column_start > 0
+                 && !line_tac_offsets_for_width.is_empty()
+                 && line_plain_text.trim().is_empty()
+                 && line_tac_offsets_for_width.iter().any(|(_, _, ci)| {
+diff --git a/src/renderer/layout/table_layout.rs b/src/renderer/layout/table_layout.rs
+index c8d2e598..f7a62d39 100644
+--- a/src/renderer/layout/table_layout.rs
++++ b/src/renderer/layout/table_layout.rs
+@@ -4218,6 +4218,20 @@ impl LayoutEngine {
+             })
+             .flatten();
+             let mt = hwpx_inline_fitted.as_ref().unwrap_or(mt);
++            // typeset::table 과 같은 갈래 — 저장 줄 사슬과 표 높이가 함께 증언하는 1행 인라인 표.
++            let hwpx_ladder_fitted = (table.common.treat_as_char
++                && self.profile.get().hwpx_stored_layout()
++                && !self.profile.get().session_edited()
++                && picture_frame.is_none()
++                && hwpx_no_adjust_fitted.is_none()
++                && hwpx_inline_fitted.is_none())
++            .then(|| {
++                crate::renderer::height_measurer::fit_stored_inline_row_to_stored_ladder(
++                    mt, table, self.dpi,
++                )
++            })
++            .flatten();
++            let mt = hwpx_ladder_fitted.as_ref().unwrap_or(mt);
+             // `TypesetEngine::format_table` uses this same narrow replacement for
+             // native HWP5 empty RowBreak hosts.  Layout must consume the identical
+             // row geometry: otherwise pagination reserves the declared tail height
+@@ -7077,6 +7091,23 @@ impl LayoutEngine {
+                                     base + vpos_px + v_off
+                                 } else if let Some(vpos_px) = stored_flow_vpos {
+                                     content_top + vpos_px + v_off
++                                } else if !matches!(effective_valign, VerticalAlign::Top)
++                                    && cell.paragraphs.iter().skip(cp_idx + 1).any(|p| {
++                                        p.text.chars().any(|c| !c.is_whitespace() && c > ' ')
++                                    })
++                                {
++                                    // 그림 아래에 글 문단(캡션 등)이 더 있으면 한/글은 그림 혼자가
++                                    // 아니라 그림+글 묶음 전체를 칸 가운데(아래)에 둔다 — 그림의
++                                    // 자리는 정렬이 반영된 앵커 문단 위쪽이다. 사용자 기출문제지:
++                                    // 그림+「Figure 1」 칸에서 한컴 미리보기 그림 윗변이 이 값과
++                                    // 1px 안으로 일치했고, 그림만 가운데에 두면 16px 아래였다.
++                                    // 앞 공간을 만들지 않은 음수 저장 오프셋은 더하지 않는다
++                                    // (아래 가운데 정렬 갈래와 같은 계약).
++                                    para_y_before_compose
++                                        + hwpunit_to_px(
++                                            topbottom_flow_vertical_offset_hu(&pic.common),
++                                            self.dpi,
++                                        )
+                                 } else {
+                                     match effective_valign {
+                                         VerticalAlign::Top => content_top + v_off,
+diff --git a/src/renderer/typeset/section/columns.rs b/src/renderer/typeset/section/columns.rs
+index 6eaa8cf4..94561f34 100644
+--- a/src/renderer/typeset/section/columns.rs
++++ b/src/renderer/typeset/section/columns.rs
+@@ -56,7 +56,13 @@ impl TypesetEngine {
+                 // vs 실소비 867.4px — zone 두 개가 1657.3px 로 본문 876.9px 에 겹쳐
+                 // 745.7px 이 쪽 밖으로 나갔다). 흐름 누적은 이 쪽에 실제로 놓인 양이므로
+                 // 둘 중 큰 값이 이 쪽의 소비량이다.
+-                max_vpos_px.max(st.current_height)
++                // 흐름 누적값은 마지막 줄의 뒤 줄간격까지 담고 있다. 구역 높이에서 그 간격을
++                // 빼는 위 Task #874 의 원칙을 누적값 쪽에도 같게 적용한다.
++                let trailing_ls_px = (0..para_idx)
++                    .rev()
++                    .find_map(|i| paragraphs[i].line_segs.last())
++                    .map_or(0.0, |line| hwpunit_to_px(line.line_spacing.max(0), self.dpi));
++                max_vpos_px.max(st.current_height - trailing_ls_px)
+             } else {
+                 st.current_height
+             }
+@@ -86,7 +92,10 @@ impl TypesetEngine {
+         // [Task #874 Stage 2] design_spacing 조건을 ≤ 1mm(=3.8px) 까지 인정. 페이지 break 후
+         // current_zone_design_spacing_px 가 stale state 로 1mm 남은 경우 (shortcut.hwp 6쪽
+         // pi=210 '도구' 헤더띠 zone cd 가 pi=209 cd=1mm 인 케이스) 도 헤더띠 leaving 으로 식별.
+-        let tac_band_extra: f64 = if st.current_zone_design_spacing_px < 4.0 {
++        // 다단 구역은 디자인 spacing 이 0 으로 잡히므로 위 조건만으로는 다단 구역의 머리 표도
++        // '헤더 띠'로 오인해 표 높이를 한 번 더 더한다(사용자 시험지: +148px). 그리기(layout)
++        // 쪽 판정과 같이 1단 구역에서만 헤더 띠로 본다.
++        let tac_band_extra: f64 = if st.current_zone_design_spacing_px < 4.0 && st.col_count <= 1 {
+             (0..para_idx)
+                 .rev()
+                 .find(|&i| !paragraphs[i].line_segs.is_empty())
+diff --git a/src/renderer/typeset/table.rs b/src/renderer/typeset/table.rs
+index 69550d7f..928bdfd6 100644
+--- a/src/renderer/typeset/table.rs
++++ b/src/renderer/typeset/table.rs
+@@ -13,7 +13,8 @@ use crate::renderer::height_measurer::{
+     fit_measured_table_declared_tail_to_declared_height,
+     fit_measured_table_nested_tail_to_declared_height, fit_measured_table_to_declared_height,
+     fit_stored_hwpx_no_adjust_rowspans, fit_stored_inline_picture_frame,
+-    trim_stored_hwpx_inline_row_trailing_spacing, MeasuredTable,
++    fit_stored_inline_row_to_stored_ladder, trim_stored_hwpx_inline_row_trailing_spacing,
++    MeasuredTable,
+ };
+ use crate::renderer::pagination::estimate_footnote_note_height;
+ use crate::renderer::style_resolver::ResolvedStyleSet;
+@@ -211,6 +212,11 @@ pub(super) fn fit_measured_for_host(
+         {
+             return Some(fitted);
+         }
++        if let Some(fitted) =
++            mt.and_then(|measured| fit_stored_inline_row_to_stored_ladder(measured, table, dpi))
++        {
++            return Some(fitted);
++        }
+     }
+     // [#2195] 빈 앵커(자리차지 표 표준형)에도 선언높이 fit 적용 — 한글은 콘텐츠가
+     // 선언보다 작아도 표 선언높이를 유지한다 (80168 pi=419 행 걷기 151.1 = 선언,

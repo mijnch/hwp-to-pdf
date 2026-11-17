@@ -1,0 +1,245 @@
+{
+ "설명": "rhwp 저장소에 한컴오피스(Hwp 2018~2024)가 직접 만든 PDF 와 그 원본 문서가 함께 있는 쌍. 원본_대조.py --rhwp-시험 이 커밋을 고정해 받고 git blob 지문으로 대조한다. 제외: 한컴 2010·macOS 뷰어·한컴독스 출력, 쪽 크기가 다른 것, rhwp scaffold 로 만든 이슈 재현 문서.",
+ "repo": "edwardkim/rhwp",
+ "commit": "21ed64071f81f35f37618717693bd30f727392c9",
+ "pairs": [
+  {
+   "pdf": "samples/2022년 국립국어원 업무계획.pdf",
+   "doc": "samples/2022년 국립국어원 업무계획.hwp",
+   "pdf_blob": "f75beb0fae7e72595dfd8cb198cfeb444ac8ba13",
+   "doc_blob": "695c725624603fc73c3edcbb319c61b6f796a50f",
+   "bytes": 1101170
+  },
+  {
+   "pdf": "samples/2025년 기부·답례품 실적 지자체 보고서_양식.pdf",
+   "doc": "samples/2025년 기부·답례품 실적 지자체 보고서_양식.hwpx",
+   "pdf_blob": "3185dc5b30b83433cca8a0084b7dd4abc432ac22",
+   "doc_blob": "c970b5a412dcc76e3525b6be798732c29832ec03",
+   "bytes": 3352099
+  },
+  {
+   "pdf": "samples/21868765_별표2_보건소_분장사무.pdf",
+   "doc": "samples/21868765_별표2_보건소_분장사무.hwp",
+   "pdf_blob": "29ff90459d21f81f39fd09672566cb7909aa200d",
+   "doc_blob": "a38d30873f6d84493d39f76d676ba2c42de066c5",
+   "bytes": 216830
+  },
+  {
+   "pdf": "samples/21_언어_기출_편집가능본-2020.pdf",
+   "doc": "samples/21_언어_기출_편집가능본.hwp",
+   "pdf_blob": "93b4ecca33a5c9f987801acff4ffda3a54d83006",
+   "doc_blob": "e17044941fd84b0577df4caa1c4095e2653d7ea0",
+   "bytes": 1378375
+  },
+  {
+   "pdf": "samples/equation-lim.pdf",
+   "doc": "samples/equation-lim.hwp",
+   "pdf_blob": "6259e79659c10f3b338381316646700f8b4e8e00",
+   "doc_blob": "bca152f65bf1964e06db1c5c4aed1af2ef69dd30",
+   "bytes": 22650
+  },
+  {
+   "pdf": "samples/exam_eng-2020.pdf",
+   "doc": "samples/exam_eng.hwp",
+   "pdf_blob": "63e13810ca8e32e22cd450fc022d9184270f046d",
+   "doc_blob": "97d6425bc87bd40e417f7581f94413495274b951",
+   "bytes": 4586880
+  },
+  {
+   "pdf": "samples/hwpx/aift-2020.pdf",
+   "doc": "samples/aift.hwp",
+   "pdf_blob": "f9754e86da97afc601bac9c2feeb7c228d02fa8f",
+   "doc_blob": "dbc92dccde8f909786275ea8b01d27d13fc17078",
+   "bytes": 8042350
+  },
+  {
+   "pdf": "samples/hwpx/form-01-2024.pdf",
+   "doc": "samples/form-01.hwp",
+   "pdf_blob": "db703479e032cc1242f6c4a46338bb381f206d34",
+   "doc_blob": "7a57fc19f55e5c96afddaf2de76af911fa271855",
+   "bytes": 39831
+  },
+  {
+   "pdf": "samples/hwpx/issue_241.pdf",
+   "doc": "samples/hwpx/issue_241.hwpx",
+   "pdf_blob": "1f7aa2eae041b75c6f06ba7b89aaf494165348c5",
+   "doc_blob": "226d70d6a782931e3264121fc7b4bf583053876c",
+   "bytes": 98246
+  },
+  {
+   "pdf": "samples/issue1891/76076_regulatory_analysis-2024.pdf",
+   "doc": "samples/76076_regulatory_analysis.hwp",
+   "pdf_blob": "adb2e019bb4b751984c6051dabdbb7e51ac5db39",
+   "doc_blob": "42c57c554c767341a80aad0354544c988893c3d4",
+   "bytes": 977249
+  },
+  {
+   "pdf": "samples/issue1891/80168_regulatory_analysis-2024.pdf",
+   "doc": "samples/80168_regulatory_analysis.hwp",
+   "pdf_blob": "05515f0f11c81c1067bd2f88fa5c0b971b50192a",
+   "doc_blob": "b2e9369c8ccfbd1581745e51afd413bdd9645907",
+   "bytes": 1162776
+  },
+  {
+   "pdf": "samples/issue1891/86712_regulatory_analysis-2024.pdf",
+   "doc": "samples/86712_regulatory_analysis.hwp",
+   "pdf_blob": "41d1f0ab411c16e931b812c464cc7464a1615907",
+   "doc_blob": "21e9cc08701428ab6f4e933ad387d4b71a9faaf9",
+   "bytes": 915010
+  },
+  {
+   "pdf": "samples/issue6888/pdf/156730935-marine-mobility-expo-2024.pdf",
+   "doc": "samples/issue6888/156730935-marine-mobility-expo.hwpx",
+   "pdf_blob": "7babe8d88ec1c973c33a6fd57ad9ad2917e15d1d",
+   "doc_blob": "c2c9d187cce0b4fcc3009b86fa2cb2e2744de590",
+   "bytes": 1415502
+  },
+  {
+   "pdf": "samples/issue6892/pdf/156726122-recycling-press-release-2020.pdf",
+   "doc": "samples/issue6892/156726122-recycling-press-release.hwpx",
+   "pdf_blob": "842dba6c03b1bc0b01ff3295ad37857004f008fd",
+   "doc_blob": "43060cab43c5ea0828c139e9b47e19092b9527d9",
+   "bytes": 4679593
+  },
+  {
+   "pdf": "samples/issue6900/pdf/156521182-covid-press-clarification-2020.pdf",
+   "doc": "samples/issue6900/156521182-covid-press-clarification.hwp",
+   "pdf_blob": "53471b86c2c92b695664ba5d37e341922e10909f",
+   "doc_blob": "6211cab37f6798acd10f1c10b964cde1f0b78579",
+   "bytes": 1596959
+  },
+  {
+   "pdf": "samples/issue6938/mixed_chart.pdf",
+   "doc": "samples/issue6938/mixed_chart.hwp",
+   "pdf_blob": "0ff64ad4437226bc1e9a0666e018985cdc3775d0",
+   "doc_blob": "e53d3ad898d4df2e9bf14cfc58a87c1e1432ebe2",
+   "bytes": 88022
+  },
+  {
+   "pdf": "samples/issue7190/3011411_tac_picture_second_line-2020.pdf",
+   "doc": "samples/issue7190/3011411_tac_picture_second_line.hwpx",
+   "pdf_blob": "3c98b88c04a319de8e8f85b382cf0a9d9c06e2d3",
+   "doc_blob": "326b958e7e9ad196be95382606398844bbaec917",
+   "bytes": 35556
+  },
+  {
+   "pdf": "samples/issue7190/36473713_leading_control_lines-2020.pdf",
+   "doc": "samples/issue7190/36473713_leading_control_lines.hwpx",
+   "pdf_blob": "173e012cc858c8b5a9866e3156544fc43e877fd3",
+   "doc_blob": "c73bfc5fab9b79a1ec5950bffd1f285a02dc6466",
+   "bytes": 90537
+  },
+  {
+   "pdf": "samples/issue7193/2983289_picture_inner_margin-2020.pdf",
+   "doc": "samples/issue7193/2983289_picture_inner_margin.hwpx",
+   "pdf_blob": "c03d3fa8cc5b2f25444a89b2e2bc10a63438dab7",
+   "doc_blob": "30e24c4c84be119d0e7c2c0f431e55c8cfd97397",
+   "bytes": 29432
+  },
+  {
+   "pdf": "samples/issue7193/3184393_picture_inner_margin-2020.pdf",
+   "doc": "samples/issue7193/3184393_picture_inner_margin.hwp",
+   "pdf_blob": "7d2b38a3a021d4aa76b9edae91ceba742ffdd4d4",
+   "doc_blob": "576a2e8d5ebb2cd90f3911990da401c54906e20e",
+   "bytes": 48447
+  },
+  {
+   "pdf": "samples/issue7198/156403546_negative_spacing_host_after_table-2020.pdf",
+   "doc": "samples/issue7198/156403546_negative_spacing_host_after_table.hwp",
+   "pdf_blob": "988d5fbd15bcd587de10659661e3207d36d75fd1",
+   "doc_blob": "b3fed1a5d8bb8151c9c09a27c21e0fa6be3ce402",
+   "bytes": 957176
+  },
+  {
+   "pdf": "samples/issue7198/156451317_positive_spacing_host_after_table-2020.pdf",
+   "doc": "samples/issue7198/156451317_positive_spacing_host_after_table.hwp",
+   "pdf_blob": "452b6770dcfea823905445860108c0d0629b0def",
+   "doc_blob": "eb9cf37cd99d3cda79c64fceef670d1eb2d887e5",
+   "bytes": 528713
+  },
+  {
+   "pdf": "samples/issue7235/156086935_none_image_fill-2020.pdf",
+   "doc": "samples/issue7235/156086935_none_image_fill.hwp",
+   "pdf_blob": "c2a57dc7d889e7c841664cddb5aade45e2fe7039",
+   "doc_blob": "bc020a619320d7120e23813179f8a01fa6f178f6",
+   "bytes": 605303
+  },
+  {
+   "pdf": "samples/issue7406/7406_OLE__CHART.pdf",
+   "doc": "samples/issue7406/7406_OLE__CHART.hwp",
+   "pdf_blob": "7fa1c1e6ab5bba3172c5b20759a3b61c7f57a4af",
+   "doc_blob": "c4f04269be2864a641cca880d8007a48d3c8aed5",
+   "bytes": 408499
+  },
+  {
+   "pdf": "samples/pr7337/nested_tac_table_wrap-2020.pdf",
+   "doc": "samples/nested_tac_table_wrap.hwp",
+   "pdf_blob": "4c08b3f269f64c1e68551fb6d37591eec87c58b7",
+   "doc_blob": "72a522799aba14bc932cdd3367231cd53ad2bba0",
+   "bytes": 284726
+  },
+  {
+   "pdf": "samples/synam-001.pdf",
+   "doc": "samples/synam-001.hwp",
+   "pdf_blob": "315f8f4bb93ab45a3b0e6f0c4275c224ef81cc0f",
+   "doc_blob": "492086befe0492b08a42edbf09be3a1bcdf40bab",
+   "bytes": 3518311
+  },
+  {
+   "pdf": "samples/task1749/saved_bounds_cumulative_page_break-2024.pdf",
+   "doc": "samples/task1749/saved_bounds_cumulative_page_break.hwp",
+   "pdf_blob": "6c227eb66d026fd670526c9b14cddd825ad05d14",
+   "doc_blob": "dffb5931e8a4b352402725840bac9746f847f243",
+   "bytes": 312525
+  },
+  {
+   "pdf": "samples/task1749/saved_bounds_cumulative_vpos-2024.pdf",
+   "doc": "samples/task1749/saved_bounds_cumulative_vpos.hwp",
+   "pdf_blob": "2e8662357fbb2db4f9af9e607396b8cebd636fb6",
+   "doc_blob": "f54b13414d92df39f747b5e899e495334e6580ae",
+   "bytes": 173132
+  },
+  {
+   "pdf": "samples/task1750/split_guard_spacing_before-2024.pdf",
+   "doc": "samples/task1750/split_guard_spacing_before.hwp",
+   "pdf_blob": "e3747502d6f3a255fc23faee9ba13f616383594b",
+   "doc_blob": "eda5fcbb660d79b8c4e1307b33cca5298554dd50",
+   "bytes": 165049
+  },
+  {
+   "pdf": "samples/task1753/deferred_takeplace_fill_ahead-2024.pdf",
+   "doc": "samples/task1753/deferred_takeplace_fill_ahead.hwp",
+   "pdf_blob": "794a459bff83b83fca7f762da404bfdda1592a4a",
+   "doc_blob": "6e6039a9d264420f0c2300ac67b56a1ad17de204",
+   "bytes": 638220
+  },
+  {
+   "pdf": "samples/task1763/cell_trailing_ls_expand-2024.pdf",
+   "doc": "samples/task1763/cell_trailing_ls_expand.hwp",
+   "pdf_blob": "b4a019d3ebf39faea687de6a41a47cfab6b48378",
+   "doc_blob": "36435d57be981e110b0f6c66ef4795fbb7fe2a85",
+   "bytes": 80186
+  },
+  {
+   "pdf": "samples/task1765/merged_cell_trailing_ls-2024.pdf",
+   "doc": "samples/task1765/merged_cell_trailing_ls.hwp",
+   "pdf_blob": "3cc9c89bafcbed56168e9a6575255946e4dcd037",
+   "doc_blob": "10612455f0e22b134f35290d67e863b1ffa9d5b8",
+   "bytes": 283251
+  },
+  {
+   "pdf": "samples/text-align-2.pdf",
+   "doc": "samples/text-align-2.hwp",
+   "pdf_blob": "0afe700f733839eadf800645280f6a6ea9941ee9",
+   "doc_blob": "01e56ffb4aa5abbb5585c0ccef49f7f4a8824350",
+   "bytes": 112085
+  },
+  {
+   "pdf": "samples/unicode/각 항목에 명시되어 있는_유니코드.pdf",
+   "doc": "samples/unicode/각 항목에 명시되어 있는_유니코드.hwp",
+   "pdf_blob": "a272858059eec4156513c073ee1150384ce970d2",
+   "doc_blob": "02d8d7836443ff1e0533c50e7b9fb9231f2210e7",
+   "bytes": 25170
+  }
+ ]
+}
